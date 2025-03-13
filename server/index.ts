@@ -53,11 +53,15 @@ connectToMongo();
 // Configure CORS
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://earnest-chimera-9ffaeb.netlify.app', 'https://damnskippy.onrender.com']
+    ? ['https://earnest-chimera-9ffaeb.netlify.app', 'https://damnskippy.onrender.com', 'https://skipthegames4ai.com', 'https://www.skipthegames4ai.com']
     : true, // Allow all origins in development
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
+
+// Add CORS preflight handler
+app.options('*', cors());
 
 // Body parsing middleware with increased limit
 app.use(express.json({ limit: '10mb' }));
