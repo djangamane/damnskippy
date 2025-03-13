@@ -48,12 +48,21 @@ async function connectToMongo() {
 
 connectToMongo();
 
-// Middleware
-app.use(cors());
+// Configure CORS
+app.use(cors({
+  origin: ['https://earnest-chimera-9ffaeb.netlify.app', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Body parsing middleware
 app.use(express.json());
 
+// API Routes
+const apiRouter = express.Router();
+
 // Authentication Routes
-app.post('/api/auth/signup', async (req: Request, res: Response) => {
+apiRouter.post('/auth/signup', async (req: Request, res: Response) => {
   try {
     const { email, password, displayName } = req.body;
     
@@ -94,7 +103,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/auth/signin', async (req: Request, res: Response) => {
+apiRouter.post('/auth/signin', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     
@@ -128,25 +137,17 @@ app.post('/api/auth/signin', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/auth/signout', (req: Request, res: Response) => {
+apiRouter.post('/auth/signout', (req: Request, res: Response) => {
   res.json({ message: 'Signed out successfully' });
 });
+
+// Mount API routes
+app.use('/api', apiRouter);
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'healthy' });
 });
-
-// Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  const distPath = path.resolve(__dirname, '../../dist');
-  app.use(express.static(distPath));
-  
-  // Serve index.html for any unknown routes (SPA fallback)
-  app.get('*', (req: Request, res: Response) => {
-    res.sendFile(path.join(distPath, 'index.html'));
-  });
-}
 
 // Initialize OpenAI client
 if (!process.env.OPENAI_API_KEY) {
@@ -555,6 +556,17 @@ app.post('/api/research', async (req: Request<{}, {}, ResearchRequest>, res: Res
     res.status(500).json({ error: 'Failed to generate research' });
   }
 });
+
+// Serve static files in production AFTER API routes
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.resolve(__dirname, '../../dist');
+  app.use(express.static(distPath));
+  
+  // Serve index.html for any unknown routes (SPA fallback)
+  app.get('*', (req: Request, res: Response) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: Function) => {
