@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
+import config from '../config/api';
 
 interface User {
   email: string;
@@ -53,17 +55,16 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       setError(null);
-      // For testing purposes, accept any email/password
-      const userData = { 
+      const response = await axios.post(`${config.apiUrl}/api/auth/signin`, {
         email,
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-        isPaidUser: false
-      };
+        password
+      });
+      
+      const userData = response.data.data;
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An error occurred during sign in';
+      const message = err instanceof Error ? err.message : 'Invalid email or password';
       setError(message);
       throw new Error(message);
     }
@@ -72,14 +73,13 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signUp = async (email: string, password: string, displayName?: string) => {
     try {
       setError(null);
-      // For testing purposes, create user with provided details
-      const userData = { 
-        email, 
-        displayName,
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-        isPaidUser: false
-      };
+      const response = await axios.post(`${config.apiUrl}/api/auth/signup`, {
+        email,
+        password,
+        displayName
+      });
+      
+      const userData = response.data.data;
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
     } catch (err) {
@@ -90,8 +90,14 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
-    setUser(null);
-    localStorage.removeItem('user');
+    try {
+      await axios.post(`${config.apiUrl}/api/auth/signout`);
+    } catch (err) {
+      console.error('Error during sign out:', err);
+    } finally {
+      setUser(null);
+      localStorage.removeItem('user');
+    }
   };
 
   const value = {

@@ -3,6 +3,7 @@ import axios from 'axios';
 import Logo from './Logo';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import config from '../config/api';
 
 interface AutomationWorkflow {
   title: string;
@@ -176,7 +177,7 @@ export default function ResearchEngine() {
     try {
       console.log('Starting research process for query:', query);
       
-      const response = await axios.post('http://localhost:3001/api/research', { query });
+      const response = await axios.post(`${config.apiUrl}/api/research`, { query });
       setResult(response.data);
       
     } catch (err) {
