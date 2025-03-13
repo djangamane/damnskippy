@@ -5,6 +5,8 @@ import OpenAI from 'openai';
 import axios from 'axios';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import bcrypt from 'bcryptjs';
+import { MongoClient, ObjectId } from 'mongodb';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,7 +16,7 @@ dotenv.config({ path: '.env.server' });
 dotenv.config({ path: '.env' });
 
 // Validate required environment variables
-const requiredEnvVars = ['OPENAI_API_KEY'];
+const requiredEnvVars = ['OPENAI_API_KEY', 'VITE_MONGODB_URI'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
@@ -29,9 +31,106 @@ console.log('Environment variables loaded:', {
 
 const app = express();
 
+// MongoDB setup
+const mongoClient = new MongoClient(process.env.VITE_MONGODB_URI as string);
+let db: any;
+
+async function connectToMongo() {
+  try {
+    await mongoClient.connect();
+    db = mongoClient.db('skipthegames4ai');
+    console.log('Connected to MongoDB');
+  } catch (err) {
+    console.error('Failed to connect to MongoDB:', err);
+    process.exit(1);
+  }
+}
+
+connectToMongo();
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Authentication Routes
+app.post('/api/auth/signup', async (req: Request, res: Response) => {
+  try {
+    const { email, password, displayName } = req.body;
+    
+    // Check if user exists
+    const existingUser = await db.collection('users').findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({ 
+        error: 'User already exists',
+        message: 'An account with this email already exists'
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const user = {
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      displayName: displayName || null,
+      isPaidUser: false,
+      createdAt: new Date(),
+      lastLoginAt: new Date()
+    };
+
+    const result = await db.collection('users').insertOne(user);
+    
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = user;
+    
+    res.status(201).json({
+      data: { ...userWithoutPassword, _id: result.insertedId },
+      message: 'Account created successfully'
+    });
+  } catch (err) {
+    console.error('Signup error:', err);
+    res.status(500).json({ error: 'An error occurred during sign up' });
+  }
+});
+
+app.post('/api/auth/signin', async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Find user
+    const user = await db.collection('users').findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Update last login
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { $set: { lastLoginAt: new Date() } }
+    );
+
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = user;
+    
+    res.json({
+      data: userWithoutPassword
+    });
+  } catch (err) {
+    console.error('Signin error:', err);
+    res.status(500).json({ error: 'An error occurred during sign in' });
+  }
+});
+
+app.post('/api/auth/signout', (req: Request, res: Response) => {
+  res.json({ message: 'Signed out successfully' });
+});
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
