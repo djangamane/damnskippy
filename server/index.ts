@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Router, RequestHandler } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
@@ -59,20 +59,32 @@ app.use(cors({
 app.use(express.json());
 
 // API Routes
-const apiRouter = express.Router();
+const apiRouter: Router = express.Router();
+
+interface SignUpBody {
+  email: string;
+  password: string;
+  displayName?: string;
+}
+
+interface SignInBody {
+  email: string;
+  password: string;
+}
 
 // Authentication Routes
-apiRouter.post('/auth/signup', async (req: Request, res: Response) => {
+const signUpHandler: RequestHandler = async (req, res) => {
   try {
-    const { email, password, displayName } = req.body;
+    const { email, password, displayName } = req.body as SignUpBody;
     
     // Check if user exists
     const existingUser = await db.collection('users').findOne({ email: email.toLowerCase() });
     if (existingUser) {
-      return res.status(400).json({ 
+      res.status(400).json({ 
         error: 'User already exists',
         message: 'An account with this email already exists'
       });
+      return;
     }
 
     // Hash password
@@ -101,22 +113,24 @@ apiRouter.post('/auth/signup', async (req: Request, res: Response) => {
     console.error('Signup error:', err);
     res.status(500).json({ error: 'An error occurred during sign up' });
   }
-});
+};
 
-apiRouter.post('/auth/signin', async (req: Request, res: Response) => {
+const signInHandler: RequestHandler = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body as SignInBody;
     
     // Find user
     const user = await db.collection('users').findOne({ email: email.toLowerCase() });
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      res.status(401).json({ error: 'Invalid email or password' });
+      return;
     }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      res.status(401).json({ error: 'Invalid email or password' });
+      return;
     }
 
     // Update last login
@@ -135,11 +149,15 @@ apiRouter.post('/auth/signin', async (req: Request, res: Response) => {
     console.error('Signin error:', err);
     res.status(500).json({ error: 'An error occurred during sign in' });
   }
-});
+};
 
-apiRouter.post('/auth/signout', (req: Request, res: Response) => {
+const signOutHandler: RequestHandler = (req, res) => {
   res.json({ message: 'Signed out successfully' });
-});
+};
+
+apiRouter.post('/auth/signup', signUpHandler);
+apiRouter.post('/auth/signin', signInHandler);
+apiRouter.post('/auth/signout', signOutHandler);
 
 // Mount API routes
 app.use('/api', apiRouter);
