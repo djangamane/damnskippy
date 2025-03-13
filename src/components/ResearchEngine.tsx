@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import Logo from './Logo';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -171,26 +172,16 @@ export default function ResearchEngine() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-    setResult(null);
-
+    
     try {
-      const response = await fetch('http://localhost:3001/api/research', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Research request failed');
-      }
-
-      const data = await response.json();
-      setResult(data);
+      console.log('Starting research process for query:', query);
+      
+      const response = await axios.post('http://localhost:3001/api/research', { query });
+      setResult(response.data);
+      
     } catch (err) {
-      setError('Failed to perform research. Please try again.');
       console.error('Research error:', err);
+      setError('Failed to perform research. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -221,20 +212,22 @@ export default function ResearchEngine() {
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-3">
             <Logo size={40} />
-            <h1 className="text-2xl font-bold text-indigo-900">SkipTheGames.AI</h1>
+            <h1 className="text-2xl font-bold text-indigo-900">SkipTheGames4AI.com</h1>
           </div>
-          <button
-            onClick={handleSignOut}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            Sign Out
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleSignOut}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
 
         {/* Main Title and Tagline */}
         <div className="text-center mb-10">
           <div className="flex items-center justify-center gap-3 mb-3">
-            <h1 className="text-5xl font-bold text-indigo-900">SkipTheGames.AI</h1>
+            <h1 className="text-5xl font-bold text-indigo-900">SkipTheGames4AI.com</h1>
           </div>
           <p className="text-xl text-indigo-700 max-w-2xl mx-auto">
             Discover AI-powered automation solutions with deep research capabilities
@@ -316,18 +309,23 @@ export default function ResearchEngine() {
               <div className="bg-white p-6 rounded-lg shadow-md border border-indigo-100">
                 <h2 className="text-2xl font-semibold mb-4 text-indigo-900">Related Tutorial</h2>
                 <div className="flex flex-col md:flex-row gap-6">
-                  <div className="md:w-1/3">
-                    <img 
-                      src={result.youtube_video.thumbnail} 
-                      alt={result.youtube_video.title}
-                      className="w-full rounded-lg shadow-md hover:shadow-lg transition-shadow"
-                    />
+                  <div className="md:w-1/2">
+                    <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                      <iframe
+                        className="absolute top-0 left-0 w-full h-full rounded-lg shadow-md"
+                        src={result.youtube_video.url}
+                        title={result.youtube_video.title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        loading="lazy"
+                      ></iframe>
+                    </div>
                   </div>
-                  <div className="md:w-2/3">
+                  <div className="md:w-1/2">
                     <h3 className="text-xl font-medium mb-2 text-indigo-800">{result.youtube_video.title}</h3>
                     <p className="text-gray-700 mb-4">{result.youtube_video.description}</p>
                     <a 
-                      href={result.youtube_video.url}
+                      href={result.youtube_video.url.replace('embed/', 'watch?v=')}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
@@ -336,7 +334,7 @@ export default function ResearchEngine() {
                         <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                         <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
                       </svg>
-                      Watch Tutorial
+                      Watch on YouTube
                     </a>
                   </div>
                 </div>

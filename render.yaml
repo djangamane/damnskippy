@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: skipthegames4ai-api
+    env: node
+    buildCommand: npm install && npm run build:server
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: VITE_MONGODB_URI
+        sync: false
+      - key: VITE_OPENAI_API_KEY
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true 

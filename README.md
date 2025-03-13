@@ -1,13 +1,35 @@
-# Planetary Chess
+# SkipTheGames4AI
 
-A modern web application built with React, TypeScript, and MongoDB.
+A powerful AI-driven research and automation platform.
 
-## Setup
+## Prerequisites
+
+- Node.js v18 or higher
+- MongoDB account and database
+- OpenAI API key
+
+## Environment Variables
+
+### Required Environment Variables
+
+- `OPENAI_API_KEY`: Your OpenAI API key
+- `VITE_MONGODB_URI`: MongoDB connection URI
+- `VITE_OPENAI_API_KEY`: OpenAI API key for client-side use
+
+## Features
+
+- Advanced AI-powered research
+- MongoDB for data persistence
+- Real-time updates
+- Custom workflow creation
+- Premium service offerings
+
+## Local Development Setup
 
 1. Clone the repository
 ```bash
 git clone <your-repo-url>
-cd planetarychess
+cd skipthegames4ai
 ```
 
 2. Install dependencies
@@ -16,34 +38,68 @@ npm install
 ```
 
 3. Configure environment variables
-Create a `.env` file in the root directory with the following variables:
+- Copy `.env.example` to `.env`
+```bash
+cp .env.example .env
 ```
-VITE_MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/planetarychess
-VITE_OPENAI_API_KEY=your_openai_api_key
-VITE_FIRECRAWL_KEY=your_firecrawl_key
-```
+- Fill in your environment variables in `.env`
 
 4. Start the development server
 ```bash
 npm start
 ```
 
-## Environment Setup
+## Production Deployment
 
-1. MongoDB Atlas
-- Create a free cluster at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
-- Get your connection string from the cluster
-- Replace `<username>`, `<password>`, and `<cluster>` in the MongoDB URI with your credentials
+### Prerequisites
+- Node.js 18+ installed
+- MongoDB database (e.g., MongoDB Atlas)
+- OpenAI API key
 
-## Available Scripts
+### Deployment Steps
 
-- `npm start` - Starts the development server
-- `npm run build` - Builds the app for production
-- `npm run dev` - Runs the app in development mode
+1. Set up environment variables
+- Ensure all required environment variables are set in your deployment environment
+- See `.env.example` for required variables
 
-## Features
+2. Build the application
+```bash
+# Install dependencies
+npm install
 
-- User authentication
-- MongoDB integration
-- Real-time updates
-- TypeScript support 
+# Build will happen automatically due to postinstall script
+# Or manually run:
+npm run build && npm run build:server
+```
+
+3. Start the production server
+```bash
+# Set NODE_ENV to production
+NODE_ENV=production npm run start:prod
+```
+
+### Deployment Platforms
+
+#### Heroku
+1. Create a new Heroku app
+2. Add environment variables in Heroku dashboard
+3. Deploy using Heroku Git:
+```bash
+heroku login
+heroku git:remote -a your-app-name
+git push heroku main
+```
+
+#### Railway/Render
+1. Connect your GitHub repository
+2. Add environment variables in the dashboard
+3. Set the build command: `npm install`
+4. Set the start command: `npm run start:prod`
+
+## Scripts
+- `npm start` - Start development server
+- `npm run build` - Build frontend for production
+- `npm run build:server` - Build backend for production
+- `npm run start:prod` - Start production server
+- `npm run lint` - Run ESLint
+- `npm run preview` - Preview production build locally 

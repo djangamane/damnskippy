@@ -3,21 +3,60 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
 import axios from 'axios';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from both files
+dotenv.config({ path: '.env.server' });
+dotenv.config({ path: '.env' });
+
+// Validate required environment variables
+const requiredEnvVars = ['OPENAI_API_KEY'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.error('Missing required environment variables:', missingEnvVars.join(', '));
+  process.exit(1);
+}
+
+console.log('Environment variables loaded:', {
+  MONGODB_URI: process.env.VITE_MONGODB_URI || 'Not set',
+  OPENAI_API_KEY: 'Set (hidden)'
+});
 
 const app = express();
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-if (!process.env.VITE_OPENAI_API_KEY) {
-  console.error('Missing VITE_OPENAI_API_KEY environment variable');
+// Health check endpoint
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'healthy' });
+});
+
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.resolve(__dirname, '../../dist');
+  app.use(express.static(distPath));
+  
+  // Serve index.html for any unknown routes (SPA fallback)
+  app.get('*', (req: Request, res: Response) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
+// Initialize OpenAI client
+if (!process.env.OPENAI_API_KEY) {
+  console.error('Missing OPENAI_API_KEY environment variable');
   process.exit(1);
 }
 
 const openai = new OpenAI({
-  apiKey: process.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 interface AutomationWorkflow {
@@ -117,7 +156,6 @@ async function performDeepResearch(query: string): Promise<string> {
   try {
     console.log('Starting research for query:', query);
     
-    // Simplified approach - just use OpenAI directly with a more robust prompt
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
@@ -130,8 +168,6 @@ async function performDeepResearch(query: string): Promise<string> {
           3. Include specific examples and use cases where relevant
           4. Suggest tools and approaches for automation
           5. Organize the information in a clear, readable format with sections
-          
-          IMPORTANT: Always include a section about how MCP (Multi-Cloud Platform) servers are connecting AI tools like never before. Explain how this technology enables seamless integration between different AI services and automation tools.
           
           Format your response in markdown with clear headings and bullet points where appropriate.`
         },
@@ -147,23 +183,7 @@ async function performDeepResearch(query: string): Promise<string> {
     return completion.choices[0].message.content || "";
   } catch (error: any) {
     console.error('Detailed research error:', error);
-    
-    // Return a fallback response instead of throwing an error
-    return `# Research on ${query}\n\n
-We apologize, but we encountered an issue while researching this topic. Here's some general information:\n\n
-- ${query} can be automated using various tools like n8n, Make.com, or Zapier
-- Consider breaking down your workflow into smaller steps for easier automation
-- Look for pre-built templates that match your needs
-- For complex workflows, custom solutions might be necessary
-
-## MCP Servers and AI Integration
-
-MCP (Multi-Cloud Platform) servers are connecting AI tools like never before, enabling seamless integration between different services. This technology allows for:
-
-- Unified management of AI services across multiple cloud providers
-- Reduced latency and improved performance for AI-powered automations
-- Enhanced security and compliance for sensitive automation workflows
-- Simplified deployment and scaling of AI solutions`;
+    throw error;
   }
 }
 
@@ -210,55 +230,7 @@ async function generateN8nWorkflow(query: string, researchContent: string): Prom
     };
   } catch (error: any) {
     console.error('n8n workflow generation error:', error);
-    
-    // Return a fallback workflow if generation fails
-    return {
-      json: {
-        nodes: [
-          {
-            parameters: {
-              triggerTimes: {
-                item: [
-                  {
-                    mode: "everyX",
-                    value: 1,
-                    unit: "hours"
-                  }
-                ]
-              }
-            },
-            name: "Schedule Trigger",
-            type: "n8n-nodes-base.scheduleTrigger",
-            typeVersion: 1,
-            position: [250, 300]
-          },
-          {
-            parameters: {
-              text: `Automated task for: ${query}`
-            },
-            name: "Set",
-            type: "n8n-nodes-base.set",
-            typeVersion: 1,
-            position: [450, 300]
-          }
-        ],
-        connections: {
-          "Schedule Trigger": {
-            main: [
-              [
-                {
-                  node: "Set",
-                  type: "main",
-                  index: 0
-                }
-              ]
-            ]
-          }
-        }
-      },
-      explanation: "This is a basic automation workflow that runs on a schedule. You can customize it further in n8n.",
-      name: `Basic ${query} Automation`
-    };
+    throw error;
   }
 }
 
@@ -278,9 +250,16 @@ async function findRelevantYoutubeVideo(query: string): Promise<ResearchResult['
     // Mock database of real videos from the specified channels
     const videoDatabase = [
       {
+        title: "Build Anything with n8n - Complete Tutorial",
+        url: "https://www.youtube.com/embed/B_1nBG0ofhc",
+        thumbnail: "https://img.youtube.com/vi/B_1nBG0ofhc/hqdefault.jpg",
+        description: "Comprehensive tutorial on building automations with n8n - perfect for beginners and advanced users alike.",
+        keywords: ["n8n", "automation", "tutorial", "workflow", "build", "complete"]
+      },
+      {
         title: "n8n Beginner Tutorial - Getting Started With n8n",
-        url: "https://www.youtube.com/watch?v=RpvNEGcLKyY",
-        thumbnail: "https://img.youtube.com/vi/RpvNEGcLKyY/maxresdefault.jpg",
+        url: "https://www.youtube.com/embed/RpvNEGcLKyY",
+        thumbnail: "https://img.youtube.com/vi/RpvNEGcLKyY/hqdefault.jpg",
         description: "Learn the basics of n8n automation with this comprehensive beginner tutorial by David Ondrej.",
         keywords: ["beginner", "tutorial", "automation", "n8n", "workflow"]
       },
@@ -402,8 +381,7 @@ async function processResearchRequest(query: string): Promise<ResearchResult> {
       research: {
         content: researchContent,
         sources: [
-          "OpenAI Documentation",
-          "Research Papers",
+          "Research-based content generated by OpenAI",
           "Industry Reports",
           "Expert Analysis"
         ]
@@ -465,73 +443,29 @@ async function processResearchRequest(query: string): Promise<ResearchResult> {
 
 app.post('/api/research', async (req: Request<{}, {}, ResearchRequest>, res: Response) => {
   try {
-    console.log('Received research request:', req.body);
-    
     const { query } = req.body;
-    if (!query) {
-      return res.status(400).json({ error: 'Query is required' });
-    }
-
+    console.log('Received research request:', { query });
+    
     console.log('Starting research process for query:', query);
     const result = await processResearchRequest(query);
+    
     console.log('Research completed successfully');
-    
-    return res.json(result);
-  } catch (error: any) {
-    console.error('API error:', error);
-    
-    // Get the query from the request body, with a fallback
-    const query = req.body?.query || 'your request';
-    
-    // Return a complete response object even in case of error
-    return res.json({
-      automation: [{
-        title: "Error Processing Request",
-        description: "We encountered an issue while processing your request. Please try again with a different query.",
-        url: "#"
-      }],
-      research: {
-        content: `We apologize, but we encountered an issue while researching "${query}". Please try again with a different query.\n\n## MCP Servers and AI Integration\n\nMCP (Multi-Cloud Platform) servers are connecting AI tools like never before, enabling seamless integration between different services.`,
-        sources: []
-      },
-      premium_service: generatePremiumService(query),
-      n8n_workflow: {
-        json: {
-          nodes: [
-            {
-              parameters: {
-                triggerTimes: {
-                  item: [
-                    {
-                      mode: "everyX",
-                      value: 1,
-                      unit: "hours"
-                    }
-                  ]
-                }
-              },
-              name: "Schedule Trigger",
-              type: "n8n-nodes-base.scheduleTrigger",
-              typeVersion: 1,
-              position: [250, 300]
-            }
-          ],
-          connections: {}
-        },
-        explanation: "No workflow could be generated due to an error.",
-        name: "Error"
-      },
-      youtube_video: {
-        title: "Automation Fundamentals",
-        url: "https://www.youtube.com/watch?v=fallback",
-        thumbnail: "https://i.ytimg.com/vi/fallback/hqdefault.jpg",
-        description: "Learn the basics of workflow automation with this introductory video."
-      }
-    });
+    res.json(result);
+  } catch (error) {
+    console.error('Research error:', error);
+    res.status(500).json({ error: 'Failed to generate research' });
   }
 });
 
+// Error handling middleware
+app.use((err: Error, req: Request, res: Response, next: Function) => {
+  console.error('Server error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// Start server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log('Environment:', process.env.NODE_ENV || 'development');
 }); 

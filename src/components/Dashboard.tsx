@@ -160,145 +160,125 @@ const Dashboard = () => {
     window.open('https://docs.google.com/forms/d/e/1FAIpQLScKYVYdIFqyUphutKENs8uedY1MtR0OSW1hJOrbg_nWaMx5WQ/viewform?usp=header', '_blank');
   };
 
+  const navigateToPayment = () => {
+    navigate('/payment');
+  };
+
   return (
-    <div className="min-h-screen bg-black flex">
-      {/* Sidebar */}
-      <div className="w-64 bg-gray-900 min-h-screen p-4">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-cyan-500">Dashboard</h1>
-          {user?.isPaidUser && (
-            <span className="bg-cyan-500 text-white px-2 py-1 rounded-full text-sm mt-2 inline-block">
-              Premium
-            </span>
-          )}
-        </div>
-
-        <nav className="space-y-2">
-          <button
-            onClick={() => setActiveTab('threads')}
-            className={`w-full text-left px-4 py-2 rounded ${
-              activeTab === 'threads'
-                ? 'bg-cyan-600 text-white'
-                : 'text-gray-300 hover:bg-gray-800'
-            }`}
-          >
-            Research Threads
-          </button>
-          {user?.isPaidUser && (
-            <button
-              onClick={() => setActiveTab('workflows')}
-              className={`w-full text-left px-4 py-2 rounded ${
-                activeTab === 'workflows'
-                  ? 'bg-cyan-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-800'
-              }`}
-            >
-              Custom Workflows
-            </button>
-          )}
-        </nav>
-
-        <div className="mt-auto pt-8">
-          <div className="text-gray-400 text-sm">
-            <div className="mb-2">
-              <span className="block">Signed in as:</span>
-              <span className="block font-medium text-white">{user?.email}</span>
+    <div className="min-h-screen bg-gray-100">
+      <div className="flex">
+        {/* Sidebar */}
+        <div className="w-64 bg-white h-screen shadow-lg">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold">Dashboard</h1>
+              {!user?.isPaidUser && (
+                <span className="bg-yellow-500 text-white text-xs px-2 py-1 rounded">Basic</span>
+              )}
+              {user?.isPaidUser && (
+                <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded">Premium</span>
+              )}
             </div>
-            <button
-              onClick={handleSignOut}
-              className="text-cyan-500 hover:text-cyan-400"
-            >
-              Sign Out
-            </button>
+            
+            {!user?.isPaidUser && (
+              <button
+                onClick={navigateToPayment}
+                className="w-full mb-6 bg-gradient-to-r from-purple-500 to-indigo-600 text-white py-2 px-4 rounded-lg hover:from-purple-600 hover:to-indigo-700 transition-all duration-200 shadow-md"
+              >
+                Upgrade to Premium
+              </button>
+            )}
+
+            <div className="space-y-2">
+              <button
+                onClick={() => setActiveTab('threads')}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  activeTab === 'threads'
+                    ? 'bg-gray-100 text-purple-600 font-medium'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Research Threads
+              </button>
+              <button
+                onClick={() => setActiveTab('workflows')}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  activeTab === 'workflows'
+                    ? 'bg-gray-100 text-purple-600 font-medium'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Custom Workflows
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1">
-        {/* Top Navigation */}
-        <div className="bg-gray-900 p-4 flex justify-end items-center space-x-4">
-          <button
-            onClick={() => navigate('/research')}
-            className="bg-cyan-500 text-white px-4 py-2 rounded hover:bg-cyan-600 transition duration-200"
-          >
-            Start Research
-          </button>
-          <button
-            onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLScKYVYdIFqyUphutKENs8uedY1MtR0OSW1hJOrbg_nWaMx5WQ/viewform?usp=header', '_blank')}
-            className="bg-cyan-600 text-white px-4 py-2 rounded hover:bg-cyan-700 transition duration-200"
-          >
-            Create Workflow
-          </button>
-          <button
-            onClick={openCalendly}
-            className="bg-cyan-700 text-white px-4 py-2 rounded hover:bg-cyan-800 transition duration-200"
-          >
-            Schedule Discovery Call
-          </button>
-        </div>
+        {/* Main content */}
+        <div className="flex-1 p-8">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-2xl font-semibold text-gray-800">
+              {activeTab === 'threads' ? 'Research Threads' : 'Custom Workflows'}
+            </h2>
+            <div className="flex space-x-4">
+              <button
+                onClick={openGoogleForm}
+                className="bg-emerald-500 text-white py-2 px-4 rounded-lg hover:bg-emerald-600 transition-colors"
+              >
+                Create Workflow
+              </button>
+              <button
+                onClick={() => navigate('/research')}
+                className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Start Research
+              </button>
+              <button
+                onClick={openCalendly}
+                className="bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors"
+              >
+                Schedule Discovery Call
+              </button>
+            </div>
+          </div>
 
-        {/* Content Area */}
-        <div className="p-6">
+          {/* Content based on active tab */}
           {activeTab === 'threads' ? (
-            <div>
-              <h2 className="text-xl font-semibold text-white mb-4">Research Threads</h2>
-              {user?.isPaidUser ? (
-                threads.length > 0 ? (
-                  <div className="grid gap-4">
-                    {threads.map(thread => (
-                      <div key={thread.id} className="bg-gray-800 p-4 rounded-lg">
-                        <h3 className="text-white font-medium">{thread.query}</h3>
-                        <p className="text-gray-400 text-sm mt-2">
-                          {new Date(thread.timestamp).toLocaleDateString()}
-                        </p>
-                        <span className={`inline-block px-2 py-1 rounded text-sm mt-2 ${
-                          thread.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'
-                        }`}>
-                          {thread.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-400">No research threads yet. Start your first research!</p>
-                )
-              ) : (
-                <div className="bg-gray-800 p-6 rounded-lg">
-                  <h3 className="text-white font-medium mb-2">Upgrade to Premium</h3>
-                  <p className="text-gray-400 mb-4">
-                    Get access to unlimited research threads and custom workflows.
-                  </p>
-                  <button
-                    onClick={openCalendly}
-                    className="bg-cyan-500 text-white px-4 py-2 rounded hover:bg-cyan-600 transition duration-200"
-                  >
-                    Schedule a Demo
-                  </button>
-                </div>
-              )}
-            </div>
+            user?.isPaidUser ? (
+              <div className="bg-white rounded-lg shadow p-6">
+                {/* Research threads content */}
+                <p>Your research history will appear here.</p>
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-6 text-center">
+                <h3 className="text-xl font-semibold text-yellow-800 mb-2">Upgrade to Access Research History</h3>
+                <p className="text-yellow-700 mb-4">Premium users can view and manage their research threads.</p>
+                <button
+                  onClick={navigateToPayment}
+                  className="bg-yellow-500 text-white py-2 px-6 rounded-lg hover:bg-yellow-600 transition-colors"
+                >
+                  Upgrade Now
+                </button>
+              </div>
+            )
           ) : (
-            <div>
-              <h2 className="text-xl font-semibold text-white mb-4">Custom Workflows</h2>
-              {workflows.length > 0 ? (
-                <div className="grid gap-4">
-                  {workflows.map(workflow => (
-                    <div key={workflow.id} className="bg-gray-800 p-4 rounded-lg">
-                      <h3 className="text-white font-medium">{workflow.name}</h3>
-                      <p className="text-gray-400 mt-2">{workflow.description}</p>
-                      <span className={`inline-block px-2 py-1 rounded text-sm mt-2 ${
-                        workflow.status === 'active' ? 'bg-green-500' : 'bg-gray-500'
-                      }`}>
-                        {workflow.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-400">No custom workflows yet. Create your first workflow!</p>
-              )}
-            </div>
+            user?.isPaidUser ? (
+              <div className="bg-white rounded-lg shadow p-6">
+                {/* Workflows content */}
+                <p>Your custom workflows will appear here.</p>
+              </div>
+            ) : (
+              <div className="bg-purple-50 border border-purple-100 rounded-lg p-6 text-center">
+                <h3 className="text-xl font-semibold text-purple-800 mb-2">Upgrade to Access Custom Workflows</h3>
+                <p className="text-purple-700 mb-4">Premium users can create and manage custom automation workflows.</p>
+                <button
+                  onClick={navigateToPayment}
+                  className="bg-purple-500 text-white py-2 px-6 rounded-lg hover:bg-purple-600 transition-colors"
+                >
+                  Upgrade Now
+                </button>
+              </div>
+            )
           )}
         </div>
       </div>
