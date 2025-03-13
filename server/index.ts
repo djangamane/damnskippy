@@ -1,4 +1,4 @@
-import express, { Request, Response, Router, RequestHandler } from 'express';
+import express, { Request, Response, Router, RequestHandler, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
@@ -6,6 +6,7 @@ import axios from 'axios';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { MongoClient, ObjectId } from 'mongodb';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,7 +17,7 @@ dotenv.config({ path: '.env.server' });
 dotenv.config({ path: '.env' });
 
 // Validate required environment variables
-const requiredEnvVars = ['OPENAI_API_KEY', 'VITE_MONGODB_URI'];
+const requiredEnvVars = ['OPENAI_API_KEY', 'VITE_MONGODB_URI', 'JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
@@ -26,7 +27,8 @@ if (missingEnvVars.length > 0) {
 
 console.log('Environment variables loaded:', {
   MONGODB_URI: process.env.VITE_MONGODB_URI || 'Not set',
-  OPENAI_API_KEY: 'Set (hidden)'
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'Set (hidden)' : 'Not set',
+  JWT_SECRET: process.env.JWT_SECRET ? 'Set (hidden)' : 'Not set'
 });
 
 const app = express();
@@ -50,13 +52,22 @@ connectToMongo();
 
 // Configure CORS
 app.use(cors({
-  origin: ['https://earnest-chimera-9ffaeb.netlify.app', 'http://localhost:3000'],
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://earnest-chimera-9ffaeb.netlify.app', 'https://damnskippy.onrender.com']
+    : true, // Allow all origins in development
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Body parsing middleware
-app.use(express.json());
+// Body parsing middleware with increased limit
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Add request logging middleware
+app.use((req: Request, res: Response, next: Function) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
 
 // API Routes
 const apiRouter: Router = express.Router();
@@ -71,6 +82,41 @@ interface SignInBody {
   email: string;
   password: string;
 }
+
+// Authentication middleware
+interface AuthRequest extends Request {
+  user?: {
+    _id: string;
+    email: string;
+    displayName?: string;
+    isPaidUser?: boolean;
+  };
+}
+
+const authenticateToken: RequestHandler = (req: AuthRequest, res: Response, next: NextFunction) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN format
+  
+  if (!token) {
+    res.status(401).json({ error: 'Access denied. No token provided.' });
+    return;
+  }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
+      _id: string;
+      email: string;
+      displayName?: string;
+      isPaidUser?: boolean;
+    };
+    
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(403).json({ error: 'Invalid token.' });
+    return;
+  }
+};
 
 // Authentication Routes
 const signUpHandler: RequestHandler = async (req, res) => {
@@ -105,8 +151,16 @@ const signUpHandler: RequestHandler = async (req, res) => {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
     
+    // Generate JWT token
+    const token = jwt.sign(
+      { ...userWithoutPassword, _id: result.insertedId },
+      process.env.JWT_SECRET as string,
+      { expiresIn: '7d' }
+    );
+    
     res.status(201).json({
       data: { ...userWithoutPassword, _id: result.insertedId },
+      token,
       message: 'Account created successfully'
     });
   } catch (err) {
@@ -142,8 +196,16 @@ const signInHandler: RequestHandler = async (req, res) => {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
     
+    // Generate JWT token
+    const token = jwt.sign(
+      userWithoutPassword,
+      process.env.JWT_SECRET as string,
+      { expiresIn: '7d' }
+    );
+    
     res.json({
-      data: userWithoutPassword
+      data: userWithoutPassword,
+      token
     });
   } catch (err) {
     console.error('Signin error:', err);
@@ -159,6 +221,11 @@ apiRouter.post('/auth/signup', signUpHandler);
 apiRouter.post('/auth/signin', signInHandler);
 apiRouter.post('/auth/signout', signOutHandler);
 
+// Protected route example
+apiRouter.get('/user/profile', authenticateToken, (req: AuthRequest, res: Response) => {
+  res.json({ user: req.user });
+});
+
 // Mount API routes
 app.use('/api', apiRouter);
 
@@ -168,14 +235,14 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // Initialize OpenAI client
+let openai: OpenAI | null = null;
 if (!process.env.OPENAI_API_KEY) {
-  console.error('Missing OPENAI_API_KEY environment variable');
-  process.exit(1);
+  console.warn('Warning: Missing OPENAI_API_KEY environment variable. Research features will be disabled.');
+} else {
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
 }
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
 
 interface AutomationWorkflow {
   title: string;
@@ -271,6 +338,10 @@ async function fetchMakeWorkflows(query: string): Promise<AutomationWorkflow[]> 
 }
 
 async function performDeepResearch(query: string): Promise<string> {
+  if (!openai) {
+    return `# Research Temporarily Unavailable\n\nWe apologize, but our research feature is currently unavailable. Please try again later.\n\nIn the meantime, you can:\n- Break down your workflow into smaller steps\n- Look for pre-built templates\n- Consider using tools like n8n, Make.com, or Zapier`;
+  }
+  
   try {
     console.log('Starting research for query:', query);
     
@@ -279,15 +350,7 @@ async function performDeepResearch(query: string): Promise<string> {
       messages: [
         {
           role: "system",
-          content: `You are a research assistant that performs deep analysis and research on automation topics. 
-          When given a query about automation or building something, you should:
-          1. Break down the topic into key aspects to research
-          2. Provide comprehensive, well-structured information
-          3. Include specific examples and use cases where relevant
-          4. Suggest tools and approaches for automation
-          5. Organize the information in a clear, readable format with sections
-          
-          Format your response in markdown with clear headings and bullet points where appropriate.`
+          content: `You are a research assistant that performs deep analysis and research on automation topics.`
         },
         {
           role: "user",
@@ -306,6 +369,14 @@ async function performDeepResearch(query: string): Promise<string> {
 }
 
 async function generateN8nWorkflow(query: string, researchContent: string): Promise<N8nWorkflow> {
+  if (!openai) {
+    return {
+      json: {},
+      explanation: "Workflow generation is temporarily unavailable.",
+      name: "Service Unavailable"
+    };
+  }
+  
   try {
     console.log('Generating n8n workflow for:', query);
 

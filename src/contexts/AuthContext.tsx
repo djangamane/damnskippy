@@ -3,6 +3,7 @@ import axios from 'axios';
 import config from '../config/api';
 
 interface User {
+  _id: string;
   email: string;
   displayName?: string;
   isPaidUser?: boolean;
@@ -18,6 +19,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   signOut: () => Promise<void>;
   error: string | null;
+  token: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,19 +36,27 @@ const useAuth = () => {
 // Then export the provider
 const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Check for stored session
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    const storedToken = localStorage.getItem('token');
+    
+    if (storedUser && storedToken) {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
+        setToken(storedToken);
+        
+        // Set the token in axios headers for all future requests
+        axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
       }
     }
     setLoading(false);
@@ -61,8 +71,17 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       
       const userData = response.data.data;
+      const authToken = response.data.token;
+      
       setUser(userData);
+      setToken(authToken);
+      
+      // Store in localStorage
       localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('token', authToken);
+      
+      // Set the token in axios headers for all future requests
+      axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Invalid email or password';
       setError(message);
@@ -80,8 +99,17 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       
       const userData = response.data.data;
+      const authToken = response.data.token;
+      
       setUser(userData);
+      setToken(authToken);
+      
+      // Store in localStorage
       localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('token', authToken);
+      
+      // Set the token in axios headers for all future requests
+      axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An error occurred during sign up';
       setError(message);
@@ -96,7 +124,12 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error('Error during sign out:', err);
     } finally {
       setUser(null);
+      setToken(null);
       localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      
+      // Remove the token from axios headers
+      delete axios.defaults.headers.common['Authorization'];
     }
   };
 
@@ -107,7 +140,8 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signIn,
     signUp,
     signOut,
-    error
+    error,
+    token
   };
 
   return (
