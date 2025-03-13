@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { MongoClient, ObjectId } from 'mongodb';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -652,13 +653,36 @@ app.post('/api/research', async (req: Request<{}, {}, ResearchRequest>, res: Res
 
 // Serve static files in production AFTER API routes
 if (process.env.NODE_ENV === 'production') {
-  const distPath = path.resolve(__dirname, '../../dist');
-  app.use(express.static(distPath));
+  // Try multiple possible paths for the dist directory
+  const possibleDistPaths = [
+    path.resolve(__dirname, '../../dist'),
+    path.resolve(__dirname, '../dist'),
+    path.resolve(process.cwd(), 'dist')
+  ];
   
-  // Serve index.html for any unknown routes (SPA fallback)
-  app.get('*', (req: Request, res: Response) => {
-    res.sendFile(path.join(distPath, 'index.html'));
-  });
+  let distPath = '';
+  for (const path of possibleDistPaths) {
+    try {
+      if (fs.existsSync(path)) {
+        distPath = path;
+        console.log(`Found dist directory at: ${distPath}`);
+        break;
+      }
+    } catch (err) {
+      console.error(`Error checking path ${path}:`, err);
+    }
+  }
+  
+  if (!distPath) {
+    console.error('Could not find dist directory. Static files will not be served.');
+  } else {
+    app.use(express.static(distPath));
+    
+    // Serve index.html for any unknown routes (SPA fallback)
+    app.get('*', (req: Request, res: Response) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
 }
 
 // Error handling middleware

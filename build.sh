@@ -8,12 +8,18 @@ npm install
 echo "Installing jsonwebtoken explicitly..."
 npm install jsonwebtoken @types/jsonwebtoken
 
-# Build the client
-echo "Building client..."
-npm run build
+# Run the render-build script
+echo "Running render-build script..."
+npm run render-build
 
-# Build the server
-echo "Building server..."
-npm run build:server
+# Print directory structure for debugging
+echo "Directory structure:"
+ls -la
+echo "dist directory:"
+ls -la dist || echo "dist directory not found"
+echo "server directory:"
+ls -la server || echo "server directory not found"
+echo "dist/server directory:"
+ls -la dist/server || echo "dist/server directory not found"
 
 echo "Build completed successfully!" 

@@ -11,18 +11,21 @@
     "start:prod": "node dist/server/index.js",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "postinstall": "npm run build && npm run build:server"
+    "postinstall": "npm run build && npm run build:server",
+    "render-build": "npm run build && npm run build:server && cp -r dist dist-backup && mkdir -p dist/server && cp -r dist-backup/* dist/ && cp -r dist/server/* dist/server/ && rm -rf dist-backup"
   },
   "dependencies": {
     "@google/generative-ai": "^0.2.1",
     "@headlessui/react": "^1.7.18",
     "@heroicons/react": "^2.1.1",
     "@tailwindcss/forms": "^0.5.7",
+    "@types/jsonwebtoken": "^9.0.9",
     "axios": "^1.6.7",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.18.3",
+    "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.14.2",
     "openai": "^4.28.4",
     "react": "^18.2.0",
