@@ -967,8 +967,8 @@ app.get('*', (req: Request, res: Response, next: NextFunction) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
-// Add an API endpoint to list files in the assets directory
-app.get('/api/assets-list', (req: Request, res: Response) => {
+// Define the assets list handler as a separate function
+const assetsListHandler: RequestHandler = (req: Request, res: Response) => {
   console.log('Received request for assets list');
   console.log('Current working directory:', process.cwd());
   console.log('__dirname:', __dirname);
@@ -1027,7 +1027,10 @@ app.get('/api/assets-list', (req: Request, res: Response) => {
   
   console.log('No assets found in any location');
   res.json([]);
-});
+};
+
+// Add an API endpoint to list files in the assets directory
+app.get('/api/assets-list', assetsListHandler);
 
 // Start the server
 const PORT = process.env.PORT || 3001;
