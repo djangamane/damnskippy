@@ -19,26 +19,42 @@
         fetch('/api/assets-list')
           .then(response => response.json())
           .then(files => {
+            console.log('Assets list received:', files);
             // Find the main JavaScript file (usually starts with 'index-' and ends with '.js')
             const mainJsFile = files.find(file => file.startsWith('index-') && file.endsWith('.js'));
             if (mainJsFile) {
+              console.log('Found main JS file:', mainJsFile);
               // Create a script element and append it to the body
               const script = document.createElement('script');
               script.type = 'module';
               script.src = '/assets/' + mainJsFile;
               document.body.appendChild(script);
+              console.log('Script element added to body with src:', script.src);
             } else {
-              console.error('No main JavaScript file found');
+              console.error('No main JavaScript file found in assets list');
+              loadFallbackScript();
             }
           })
           .catch(error => {
             console.error('Error loading assets list:', error);
-            // Fallback: try to load a script with a generic name
-            const script = document.createElement('script');
-            script.type = 'module';
-            script.src = '/assets/main.js';
-            document.body.appendChild(script);
+            loadFallbackScript();
           });
+          
+        function loadFallbackScript() {
+          console.log('Loading fallback script from /assets/main.js');
+          // Fallback: try to load a script with a generic name
+          const script = document.createElement('script');
+          // Don't use module type for fallback script
+          script.src = '/assets/main.js';
+          script.onerror = function() {
+            console.log('Fallback script failed to load, trying public/assets/main.js');
+            const publicScript = document.createElement('script');
+            // Don't use module type for fallback script
+            publicScript.src = '/public/assets/main.js';
+            document.body.appendChild(publicScript);
+          };
+          document.body.appendChild(script);
+        }
       });
     </script>
   </body>

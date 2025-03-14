@@ -917,6 +917,45 @@ app.use(express.static(distPath, {
   }
 }));
 
+// Add a specific handler for the fallback JavaScript file
+app.get('/assets/main.js', (req: Request, res: Response) => {
+  console.log('Received request for fallback JavaScript file /assets/main.js');
+  
+  // First try to find it in the assets directory
+  const assetsPath = path.join(distPath, 'assets', 'main.js');
+  if (fs.existsSync(assetsPath)) {
+    console.log(`Found fallback JavaScript file at ${assetsPath}`);
+    res.setHeader('Content-Type', 'application/javascript');
+    return res.sendFile(assetsPath);
+  }
+  
+  // If not found in assets, try the public/assets directory
+  const publicAssetsPath = path.join(distPath, 'public', 'assets', 'main.js');
+  if (fs.existsSync(publicAssetsPath)) {
+    console.log(`Found fallback JavaScript file at ${publicAssetsPath}`);
+    res.setHeader('Content-Type', 'application/javascript');
+    return res.sendFile(publicAssetsPath);
+  }
+  
+  console.log('Fallback JavaScript file not found');
+  res.status(404).send('Not found');
+});
+
+// Add a specific handler for the public assets fallback JavaScript file
+app.get('/public/assets/main.js', (req: Request, res: Response) => {
+  console.log('Received request for public fallback JavaScript file /public/assets/main.js');
+  
+  const publicAssetsPath = path.join(distPath, 'public', 'assets', 'main.js');
+  if (fs.existsSync(publicAssetsPath)) {
+    console.log(`Found public fallback JavaScript file at ${publicAssetsPath}`);
+    res.setHeader('Content-Type', 'application/javascript');
+    return res.sendFile(publicAssetsPath);
+  }
+  
+  console.log('Public fallback JavaScript file not found');
+  res.status(404).send('Not found');
+});
+
 // Catch-all route to serve index.html for client-side routing (SPA fallback)
 app.get('*', (req: Request, res: Response, next: NextFunction) => {
   // Skip API routes and static assets that exist
@@ -942,6 +981,8 @@ app.get('/api/assets-list', (req: Request, res: Response) => {
     path.join(process.cwd(), 'dist', 'assets')
   ];
   
+  let filesFound = false;
+  
   for (const dir of possibleAssetsDirs) {
     console.log(`Checking for assets directory at ${dir}`);
     if (fs.existsSync(dir)) {
@@ -949,6 +990,7 @@ app.get('/api/assets-list', (req: Request, res: Response) => {
       try {
         const files = fs.readdirSync(dir);
         console.log(`Files in assets directory: ${files.join(', ')}`);
+        filesFound = true;
         return res.json(files);
       } catch (error) {
         console.error(`Error reading directory ${dir}:`, error);
@@ -957,7 +999,23 @@ app.get('/api/assets-list', (req: Request, res: Response) => {
   }
   
   // If no assets directory found, return an empty array
-  console.log('No assets directory found');
+  if (!filesFound) {
+    console.log('No assets directory found, checking public/assets as fallback');
+    const publicAssetsDir = path.join(distPath, 'public', 'assets');
+    
+    if (fs.existsSync(publicAssetsDir)) {
+      try {
+        const files = fs.readdirSync(publicAssetsDir);
+        console.log(`Files in public/assets directory: ${files.join(', ')}`);
+        // Return these files with a special prefix to indicate they're from public/assets
+        return res.json(files);
+      } catch (error) {
+        console.error(`Error reading public/assets directory:`, error);
+      }
+    }
+  }
+  
+  console.log('No assets found in any location');
   res.json([]);
 });
 
