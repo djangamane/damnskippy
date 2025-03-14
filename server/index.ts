@@ -687,22 +687,71 @@ app.get('/src/main.tsx', (req: Request, res: Response) => {
     
     // Look for JS files in the assets directory
     const assetsDir = path.join(distPath, 'assets');
+    console.log(`Looking for JS files in ${assetsDir}`);
+    
     if (fs.existsSync(assetsDir)) {
-      const jsFiles = fs.readdirSync(assetsDir).filter(file => file.endsWith('.js'));
-      console.log(`Found JS files in assets directory: ${jsFiles.join(', ')}`);
-      
-      if (jsFiles.length > 0) {
-        // Find the main bundle (usually starts with 'index-')
-        const mainJsFile = jsFiles.find(file => file.startsWith('index-')) || jsFiles[0];
-        const redirectUrl = `/assets/${mainJsFile}`;
+      try {
+        // List all files in the assets directory
+        const allFiles = fs.readdirSync(assetsDir);
+        console.log(`All files in assets directory: ${allFiles.join(', ')}`);
         
-        console.log(`Redirecting to ${redirectUrl}`);
-        return res.redirect(redirectUrl);
+        // Filter for JavaScript files
+        const jsFiles = allFiles.filter(file => file.endsWith('.js'));
+        console.log(`Found JS files in assets directory: ${jsFiles.join(', ')}`);
+        
+        if (jsFiles.length > 0) {
+          // Find the main bundle (usually starts with 'index-')
+          const mainJsFile = jsFiles.find(file => file.startsWith('index-')) || jsFiles[0];
+          const redirectUrl = `/assets/${mainJsFile}`;
+          
+          console.log(`Redirecting to ${redirectUrl}`);
+          return res.redirect(redirectUrl);
+        } else {
+          console.log('No JavaScript files found in assets directory');
+        }
+      } catch (error) {
+        console.error('Error reading assets directory:', error);
+      }
+    } else {
+      console.log(`Assets directory not found at ${assetsDir}`);
+      
+      // Try to find the assets directory in other locations
+      const possibleAssetsDirs = [
+        path.join(distPath, 'assets'),
+        path.join(distPath, 'dist', 'assets'),
+        path.join(__dirname, '..', 'assets'),
+        path.join(__dirname, '..', '..', 'assets'),
+        path.join(process.cwd(), 'assets'),
+        path.join(process.cwd(), 'dist', 'assets')
+      ];
+      
+      for (const dir of possibleAssetsDirs) {
+        console.log(`Checking for assets directory at ${dir}`);
+        if (fs.existsSync(dir)) {
+          console.log(`Found assets directory at ${dir}`);
+          try {
+            const jsFiles = fs.readdirSync(dir).filter(file => file.endsWith('.js'));
+            console.log(`Found JS files in ${dir}: ${jsFiles.join(', ')}`);
+            
+            if (jsFiles.length > 0) {
+              const mainJsFile = jsFiles.find(file => file.startsWith('index-')) || jsFiles[0];
+              const redirectUrl = `/assets/${mainJsFile}`;
+              
+              console.log(`Redirecting to ${redirectUrl}`);
+              return res.redirect(redirectUrl);
+            }
+          } catch (error) {
+            console.error(`Error reading directory ${dir}:`, error);
+          }
+        }
       }
     }
     
     console.log('No suitable JS file found to redirect to');
-    return res.status(404).send('Not found');
+    
+    // If we can't find a JavaScript file, serve the index.html file
+    console.log('Serving index.html as a fallback');
+    return res.sendFile(path.join(distPath, 'index.html'));
   }
   
   // In development, try to serve the actual file
@@ -765,32 +814,61 @@ app.get('/assets/*.js', (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/javascript');
     res.sendFile(jsFilePath);
   } else {
-    // If the exact file doesn't exist, try to find any JavaScript file in the assets directory
-    const assetsDir = path.join(distPath, 'assets');
-    if (fs.existsSync(assetsDir)) {
-      const jsFiles = fs.readdirSync(assetsDir).filter(file => file.endsWith('.js'));
-      console.log(`Available JavaScript files in assets directory: ${jsFiles.join(', ')}`);
-      
-      if (jsFiles.length > 0) {
-        // If the requested file starts with 'index-', try to find a matching pattern
-        if (filename.startsWith('index-')) {
-          const indexJsFiles = jsFiles.filter(file => file.startsWith('index-'));
-          if (indexJsFiles.length > 0) {
-            const indexJsFile = indexJsFiles[0];
-            const indexJsFilePath = path.join(assetsDir, indexJsFile);
-            console.log(`Serving ${indexJsFile} instead of ${filename} with application/javascript MIME type`);
-            res.setHeader('Content-Type', 'application/javascript');
-            res.sendFile(indexJsFilePath);
-            return;
-          }
+    console.log(`JavaScript file not found at ${jsFilePath}`);
+    
+    // Try to find the assets directory in other locations
+    const possibleAssetsDirs = [
+      path.join(distPath, 'assets'),
+      path.join(distPath, 'dist', 'assets'),
+      path.join(__dirname, '..', 'assets'),
+      path.join(__dirname, '..', '..', 'assets'),
+      path.join(process.cwd(), 'assets'),
+      path.join(process.cwd(), 'dist', 'assets')
+    ];
+    
+    for (const dir of possibleAssetsDirs) {
+      console.log(`Checking for assets directory at ${dir}`);
+      if (fs.existsSync(dir)) {
+        console.log(`Found assets directory at ${dir}`);
+        
+        // Check if the exact file exists in this directory
+        const exactFilePath = path.join(dir, filename);
+        if (fs.existsSync(exactFilePath)) {
+          console.log(`Found ${filename} at ${exactFilePath}, serving with application/javascript MIME type`);
+          res.setHeader('Content-Type', 'application/javascript');
+          res.sendFile(exactFilePath);
+          return;
         }
         
-        // If no matching pattern found, serve the first JavaScript file
-        const jsFilePath = path.join(assetsDir, jsFiles[0]);
-        console.log(`Serving ${jsFiles[0]} instead of ${filename} with application/javascript MIME type`);
-        res.setHeader('Content-Type', 'application/javascript');
-        res.sendFile(jsFilePath);
-        return;
+        try {
+          // If the exact file doesn't exist, try to find any JavaScript file in the assets directory
+          const jsFiles = fs.readdirSync(dir).filter(file => file.endsWith('.js'));
+          console.log(`Available JavaScript files in ${dir}: ${jsFiles.join(', ')}`);
+          
+          if (jsFiles.length > 0) {
+            // If the requested file starts with 'index-', try to find a matching pattern
+            if (filename.startsWith('index-')) {
+              const indexJsFiles = jsFiles.filter(file => file.startsWith('index-'));
+              if (indexJsFiles.length > 0) {
+                const indexJsFile = indexJsFiles[0];
+                const indexJsFilePath = path.join(dir, indexJsFile);
+                console.log(`Serving ${indexJsFile} instead of ${filename} with application/javascript MIME type`);
+                res.setHeader('Content-Type', 'application/javascript');
+                res.sendFile(indexJsFilePath);
+                return;
+              }
+            }
+            
+            // If no matching pattern found, serve the first JavaScript file
+            const jsFilePath = path.join(dir, jsFiles[0]);
+            console.log(`Serving ${jsFiles[0]} instead of ${filename} with application/javascript MIME type`);
+            res.setHeader('Content-Type', 'application/javascript');
+            res.sendFile(jsFilePath);
+            return;
+          }
+        } catch (error) {
+          console.error(`Error reading directory ${dir}:`, error);
+        }
       }
     }
     
