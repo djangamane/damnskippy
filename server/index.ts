@@ -661,40 +661,56 @@ app.post('/api/research', async (req: Request<{}, {}, ResearchRequest>, res: Res
 const distPath = path.resolve(__dirname, '../../');
 console.log('Found dist directory at:', distPath);
 
-// Handle specific static file requests that might be causing issues
+// Handle favicon.ico and vite.svg requests
 app.get('/vite.svg', (req: Request, res: Response) => {
-  res.sendFile(path.join(distPath, 'public', 'vite.svg'));
+  // Try to serve from public dir first, then from assets
+  const publicPath = path.join(distPath, 'public', 'vite.svg');
+  const assetsPath = path.join(distPath, 'assets', 'vite.svg');
+  
+  if (fs.existsSync(publicPath)) {
+    res.sendFile(publicPath);
+  } else if (fs.existsSync(assetsPath)) {
+    res.sendFile(assetsPath);
+  } else {
+    // If not found, just return 204
+    res.status(204).end();
+  }
 });
 
-app.get('/src/main.tsx', (req: Request, res: Response) => {
-  // Redirect to the built JS file
-  res.redirect('/assets/index-8fdnOYjb.js');
-});
-
-// Set proper MIME types for JavaScript modules
+// Set proper MIME types for all files
 app.use(express.static(distPath, {
-  setHeaders: (res, path) => {
-    // Set proper MIME type for JavaScript modules
-    if (path.endsWith('.js')) {
+  setHeaders: (res, filePath) => {
+    // Set proper MIME types based on file extension
+    if (filePath.endsWith('.js')) {
       res.setHeader('Content-Type', 'application/javascript');
-    } else if (path.endsWith('.mjs')) {
+    } else if (filePath.endsWith('.mjs')) {
       res.setHeader('Content-Type', 'application/javascript');
-    } else if (path.endsWith('.css')) {
+    } else if (filePath.endsWith('.css')) {
       res.setHeader('Content-Type', 'text/css');
-    } else if (path.endsWith('.html')) {
+    } else if (filePath.endsWith('.html')) {
       res.setHeader('Content-Type', 'text/html');
-    } else if (path.endsWith('.svg')) {
+    } else if (filePath.endsWith('.svg')) {
       res.setHeader('Content-Type', 'image/svg+xml');
+    } else if (filePath.endsWith('.json')) {
+      res.setHeader('Content-Type', 'application/json');
+    } else if (filePath.endsWith('.png')) {
+      res.setHeader('Content-Type', 'image/png');
+    } else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
+      res.setHeader('Content-Type', 'image/jpeg');
+    } else if (filePath.endsWith('.gif')) {
+      res.setHeader('Content-Type', 'image/gif');
     }
   }
 }));
 
-// Catch-all route to serve index.html for client-side routing
+// Catch-all route to serve index.html for client-side routing (SPA fallback)
 app.get('*', (req: Request, res: Response, next: NextFunction) => {
-  // Skip API routes
+  // Skip API routes and static assets that exist
   if (req.url.startsWith('/api/')) {
     return next();
   }
+  
+  // Handle SPA routes by sending index.html
   res.sendFile(path.join(distPath, 'index.html'));
 });
 

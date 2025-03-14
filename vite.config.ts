@@ -8,14 +8,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: false, // Don't empty the outDir as it might contain server files
-    rollupOptions: {
-      output: {
-        // Ensure proper MIME types for JavaScript modules
-        entryFileNames: 'assets/[name]-[hash].js',
-        chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]',
-      },
-    },
+    assetsDir: 'assets',
+    sourcemap: false,
   },
   server: {
     proxy: {
@@ -25,4 +19,6 @@ export default defineConfig({
       },
     },
   },
+  // Copy public assets to dist
+  publicDir: 'public',
 });
