@@ -970,6 +970,9 @@ app.get('*', (req: Request, res: Response, next: NextFunction) => {
 // Add an API endpoint to list files in the assets directory
 app.get('/api/assets-list', (req: Request, res: Response) => {
   console.log('Received request for assets list');
+  console.log('Current working directory:', process.cwd());
+  console.log('__dirname:', __dirname);
+  console.log('distPath:', distPath);
   
   // Try to find the assets directory in various locations
   const possibleAssetsDirs = [
@@ -980,6 +983,11 @@ app.get('/api/assets-list', (req: Request, res: Response) => {
     path.join(process.cwd(), 'assets'),
     path.join(process.cwd(), 'dist', 'assets')
   ];
+  
+  console.log('Checking these possible asset directories:');
+  possibleAssetsDirs.forEach(dir => {
+    console.log(`- ${dir} (exists: ${fs.existsSync(dir)})`);
+  });
   
   let filesFound = false;
   
@@ -1002,6 +1010,8 @@ app.get('/api/assets-list', (req: Request, res: Response) => {
   if (!filesFound) {
     console.log('No assets directory found, checking public/assets as fallback');
     const publicAssetsDir = path.join(distPath, 'public', 'assets');
+    
+    console.log(`Checking public assets directory at ${publicAssetsDir} (exists: ${fs.existsSync(publicAssetsDir)})`);
     
     if (fs.existsSync(publicAssetsDir)) {
       try {

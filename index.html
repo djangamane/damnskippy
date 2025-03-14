@@ -5,6 +5,16 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>skipthegames4AI.com - AI-Powered Research Automation</title>
+    <script>
+      // Add early logging to track page load
+      console.log('Page loading started at:', new Date().toISOString());
+      console.log('Initial document.readyState:', document.readyState);
+      
+      // Track document ready state changes
+      document.addEventListener('readystatechange', function() {
+        console.log('Document readyState changed to:', document.readyState);
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>
@@ -13,11 +23,25 @@
       We're not using any specific file names to avoid issues with hashed filenames.
     -->
     <script>
+      // Log when this script starts executing
+      console.log('Main script execution started at:', new Date().toISOString());
+      
       // Dynamically load the main JavaScript file
       window.addEventListener('DOMContentLoaded', function() {
+        console.log('DOMContentLoaded event fired at:', new Date().toISOString());
+        console.log('Document readyState at DOMContentLoaded:', document.readyState);
+        
         // Try to fetch the list of files in the assets directory
+        console.log('Fetching assets list from /api/assets-list');
         fetch('/api/assets-list')
-          .then(response => response.json())
+          .then(response => {
+            console.log('Assets list response received:', {
+              status: response.status,
+              statusText: response.statusText,
+              headers: Array.from(response.headers.entries())
+            });
+            return response.json();
+          })
           .then(files => {
             console.log('Assets list received:', files);
             // Find the main JavaScript file (usually starts with 'index-' and ends with '.js')
@@ -28,6 +52,13 @@
               const script = document.createElement('script');
               script.type = 'module';
               script.src = '/assets/' + mainJsFile;
+              script.onload = function() {
+                console.log('Main script loaded successfully:', mainJsFile);
+              };
+              script.onerror = function(error) {
+                console.error('Error loading main script:', error);
+                loadFallbackScript();
+              };
               document.body.appendChild(script);
               console.log('Script element added to body with src:', script.src);
             } else {
@@ -46,16 +77,52 @@
           const script = document.createElement('script');
           // Don't use module type for fallback script
           script.src = '/assets/main.js';
-          script.onerror = function() {
-            console.log('Fallback script failed to load, trying public/assets/main.js');
+          script.onload = function() {
+            console.log('Fallback script loaded successfully from /assets/main.js');
+          };
+          script.onerror = function(error) {
+            console.error('Error loading fallback script from /assets/main.js:', error);
+            console.log('Trying public/assets/main.js as a last resort');
             const publicScript = document.createElement('script');
             // Don't use module type for fallback script
             publicScript.src = '/public/assets/main.js';
+            publicScript.onload = function() {
+              console.log('Public fallback script loaded successfully from /public/assets/main.js');
+            };
+            publicScript.onerror = function(error) {
+              console.error('Error loading public fallback script:', error);
+              console.error('All script loading attempts failed. Displaying basic error message.');
+              
+              // If all script loading attempts fail, show a basic error message
+              const root = document.getElementById('root');
+              if (root) {
+                root.innerHTML = `
+                  <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; text-align: center;">
+                    <h1 style="color: #333;">skipthegames4AI.com</h1>
+                    <p style="font-size: 18px; margin-top: 20px;">We're experiencing technical difficulties.</p>
+                    <p style="font-size: 16px; margin-top: 20px; color: #666;">Please try refreshing the page or come back later.</p>
+                    <button onclick="window.location.reload()" style="background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 20px;">Refresh Page</button>
+                  </div>
+                `;
+              }
+            };
             document.body.appendChild(publicScript);
           };
           document.body.appendChild(script);
         }
       });
+      
+      // Add window load event listener
+      window.addEventListener('load', function() {
+        console.log('Window load event fired at:', new Date().toISOString());
+        console.log('Document readyState at window.load:', document.readyState);
+      });
+      
+      // Add global error handler
+      window.onerror = function(message, source, lineno, colno, error) {
+        console.error('Global error caught in index.html:', { message, source, lineno, colno });
+        return false;
+      };
     </script>
   </body>
 </html>
