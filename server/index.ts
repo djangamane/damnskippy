@@ -677,28 +677,94 @@ app.get('/vite.svg', (req: Request, res: Response) => {
   }
 });
 
+// Add a specific handler for /src/main.tsx
+app.get('/src/main.tsx', (req: Request, res: Response) => {
+  console.log('Received request for /src/main.tsx');
+  
+  // Check if the file exists in the src directory
+  const srcPath = path.join(distPath, 'src', 'main.tsx');
+  
+  if (fs.existsSync(srcPath)) {
+    console.log(`Found main.tsx at ${srcPath}, serving with application/javascript MIME type`);
+    res.setHeader('Content-Type', 'application/javascript');
+    res.sendFile(srcPath);
+  } else {
+    // If not found in src, check if there's a built JS file we can serve instead
+    console.log(`main.tsx not found at ${srcPath}, looking for built JS files`);
+    
+    // Look for JS files in the assets directory
+    const assetsDir = path.join(distPath, 'assets');
+    if (fs.existsSync(assetsDir)) {
+      const jsFiles = fs.readdirSync(assetsDir).filter(file => file.endsWith('.js'));
+      console.log(`Found JS files in assets directory: ${jsFiles.join(', ')}`);
+      
+      if (jsFiles.length > 0) {
+        // Serve the first JS file found (assuming it's the main bundle)
+        const jsFilePath = path.join(assetsDir, jsFiles[0]);
+        console.log(`Serving ${jsFilePath} with application/javascript MIME type`);
+        res.setHeader('Content-Type', 'application/javascript');
+        res.sendFile(jsFilePath);
+        return;
+      }
+    }
+    
+    console.log('No suitable JS file found to serve for /src/main.tsx');
+    res.status(404).send('Not found');
+  }
+});
+
+// Add a specific handler for the known built JavaScript file
+app.get('/assets/index-8fdnOYjb.js', (req: Request, res: Response) => {
+  console.log('Received request for /assets/index-8fdnOYjb.js');
+  
+  const jsFilePath = path.join(distPath, 'assets', 'index-8fdnOYjb.js');
+  
+  if (fs.existsSync(jsFilePath)) {
+    console.log(`Found index-8fdnOYjb.js at ${jsFilePath}, serving with application/javascript MIME type`);
+    res.setHeader('Content-Type', 'application/javascript');
+    res.sendFile(jsFilePath);
+  } else {
+    console.log(`JavaScript file not found at ${jsFilePath}`);
+    res.status(404).send('Not found');
+  }
+});
+
 // Set proper MIME types for all files
 app.use(express.static(distPath, {
   setHeaders: (res, filePath) => {
+    // Log the file path being processed
+    console.log(`Setting headers for file: ${filePath}`);
+    
     // Set proper MIME types based on file extension
     if (filePath.endsWith('.js')) {
+      console.log(`Setting Content-Type: application/javascript for ${filePath}`);
       res.setHeader('Content-Type', 'application/javascript');
     } else if (filePath.endsWith('.mjs')) {
+      console.log(`Setting Content-Type: application/javascript for ${filePath}`);
       res.setHeader('Content-Type', 'application/javascript');
     } else if (filePath.endsWith('.css')) {
+      console.log(`Setting Content-Type: text/css for ${filePath}`);
       res.setHeader('Content-Type', 'text/css');
     } else if (filePath.endsWith('.html')) {
+      console.log(`Setting Content-Type: text/html for ${filePath}`);
       res.setHeader('Content-Type', 'text/html');
     } else if (filePath.endsWith('.svg')) {
+      console.log(`Setting Content-Type: image/svg+xml for ${filePath}`);
       res.setHeader('Content-Type', 'image/svg+xml');
     } else if (filePath.endsWith('.json')) {
+      console.log(`Setting Content-Type: application/json for ${filePath}`);
       res.setHeader('Content-Type', 'application/json');
     } else if (filePath.endsWith('.png')) {
+      console.log(`Setting Content-Type: image/png for ${filePath}`);
       res.setHeader('Content-Type', 'image/png');
     } else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
+      console.log(`Setting Content-Type: image/jpeg for ${filePath}`);
       res.setHeader('Content-Type', 'image/jpeg');
     } else if (filePath.endsWith('.gif')) {
+      console.log(`Setting Content-Type: image/gif for ${filePath}`);
       res.setHeader('Content-Type', 'image/gif');
+    } else {
+      console.log(`No specific Content-Type set for ${filePath}`);
     }
   }
 }));
