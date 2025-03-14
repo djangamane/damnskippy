@@ -54,7 +54,7 @@ connectToMongo();
 // Configure CORS
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://earnest-chimera-9ffaeb.netlify.app', 'https://damnskippy.onrender.com', 'https://skipthegames4ai.com', 'https://www.skipthegames4ai.com']
+    ? ['https://earnest-chimera-9ffaeb.netlify.app', 'https://damnskippy.onrender.com', 'https://skipthegames4ai.com', 'https://www.skipthegames4ai.com', 'https://damnskippy.onrender.com', 'https://skipthegames4ai.netlify.app', '*']
     : true, // Allow all origins in development
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
