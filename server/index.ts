@@ -729,6 +729,71 @@ app.get('/assets/index-8fdnOYjb.js', (req: Request, res: Response) => {
   }
 });
 
+// Add a specific handler for the correct JavaScript file
+app.get('/assets/index-D51VyPyo.js', (req: Request, res: Response) => {
+  console.log('Received request for /assets/index-D51VyPyo.js');
+  
+  const jsFilePath = path.join(distPath, 'assets', 'index-D51VyPyo.js');
+  
+  if (fs.existsSync(jsFilePath)) {
+    console.log(`Found index-D51VyPyo.js at ${jsFilePath}, serving with application/javascript MIME type`);
+    res.setHeader('Content-Type', 'application/javascript');
+    res.sendFile(jsFilePath);
+  } else {
+    console.log(`JavaScript file not found at ${jsFilePath}`);
+    res.status(404).send('Not found');
+  }
+});
+
+// Add a general handler for any JavaScript files in the assets directory
+app.get('/assets/*.js', (req: Request, res: Response) => {
+  console.log(`Received request for ${req.path}`);
+  
+  // Extract the filename from the path
+  const filename = path.basename(req.path);
+  const jsFilePath = path.join(distPath, 'assets', filename);
+  
+  console.log(`Looking for JavaScript file at ${jsFilePath}`);
+  
+  if (fs.existsSync(jsFilePath)) {
+    console.log(`Found ${filename} at ${jsFilePath}, serving with application/javascript MIME type`);
+    res.setHeader('Content-Type', 'application/javascript');
+    res.sendFile(jsFilePath);
+  } else {
+    // If the exact file doesn't exist, try to find any JavaScript file in the assets directory
+    const assetsDir = path.join(distPath, 'assets');
+    if (fs.existsSync(assetsDir)) {
+      const jsFiles = fs.readdirSync(assetsDir).filter(file => file.endsWith('.js'));
+      console.log(`Available JavaScript files in assets directory: ${jsFiles.join(', ')}`);
+      
+      if (jsFiles.length > 0) {
+        // If the requested file starts with 'index-', try to find a matching pattern
+        if (filename.startsWith('index-')) {
+          const indexJsFiles = jsFiles.filter(file => file.startsWith('index-'));
+          if (indexJsFiles.length > 0) {
+            const indexJsFile = indexJsFiles[0];
+            const indexJsFilePath = path.join(assetsDir, indexJsFile);
+            console.log(`Serving ${indexJsFile} instead of ${filename} with application/javascript MIME type`);
+            res.setHeader('Content-Type', 'application/javascript');
+            res.sendFile(indexJsFilePath);
+            return;
+          }
+        }
+        
+        // If no matching pattern found, serve the first JavaScript file
+        const jsFilePath = path.join(assetsDir, jsFiles[0]);
+        console.log(`Serving ${jsFiles[0]} instead of ${filename} with application/javascript MIME type`);
+        res.setHeader('Content-Type', 'application/javascript');
+        res.sendFile(jsFilePath);
+        return;
+      }
+    }
+    
+    console.log(`No suitable JavaScript file found for ${req.path}`);
+    res.status(404).send('Not found');
+  }
+});
+
 // Set proper MIME types for all files
 app.use(express.static(distPath, {
   setHeaders: (res, filePath) => {
