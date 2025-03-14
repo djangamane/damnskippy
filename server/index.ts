@@ -681,16 +681,9 @@ app.get('/vite.svg', (req: Request, res: Response) => {
 app.get('/src/main.tsx', (req: Request, res: Response) => {
   console.log('Received request for /src/main.tsx');
   
-  // Check if the file exists in the src directory
-  const srcPath = path.join(distPath, 'src', 'main.tsx');
-  
-  if (fs.existsSync(srcPath)) {
-    console.log(`Found main.tsx at ${srcPath}, serving with application/javascript MIME type`);
-    res.setHeader('Content-Type', 'application/javascript');
-    res.sendFile(srcPath);
-  } else {
-    // If not found in src, check if there's a built JS file we can serve instead
-    console.log(`main.tsx not found at ${srcPath}, looking for built JS files`);
+  // In production, we should redirect to the built JS file
+  if (process.env.NODE_ENV === 'production') {
+    console.log('In production mode, redirecting to built JS file');
     
     // Look for JS files in the assets directory
     const assetsDir = path.join(distPath, 'assets');
@@ -699,16 +692,28 @@ app.get('/src/main.tsx', (req: Request, res: Response) => {
       console.log(`Found JS files in assets directory: ${jsFiles.join(', ')}`);
       
       if (jsFiles.length > 0) {
-        // Serve the first JS file found (assuming it's the main bundle)
-        const jsFilePath = path.join(assetsDir, jsFiles[0]);
-        console.log(`Serving ${jsFilePath} with application/javascript MIME type`);
-        res.setHeader('Content-Type', 'application/javascript');
-        res.sendFile(jsFilePath);
-        return;
+        // Find the main bundle (usually starts with 'index-')
+        const mainJsFile = jsFiles.find(file => file.startsWith('index-')) || jsFiles[0];
+        const redirectUrl = `/assets/${mainJsFile}`;
+        
+        console.log(`Redirecting to ${redirectUrl}`);
+        return res.redirect(redirectUrl);
       }
     }
     
-    console.log('No suitable JS file found to serve for /src/main.tsx');
+    console.log('No suitable JS file found to redirect to');
+    return res.status(404).send('Not found');
+  }
+  
+  // In development, try to serve the actual file
+  const srcPath = path.join(distPath, 'src', 'main.tsx');
+  
+  if (fs.existsSync(srcPath)) {
+    console.log(`Found main.tsx at ${srcPath}, serving with application/javascript MIME type`);
+    res.setHeader('Content-Type', 'application/javascript');
+    res.sendFile(srcPath);
+  } else {
+    console.log(`main.tsx not found at ${srcPath}`);
     res.status(404).send('Not found');
   }
 });
