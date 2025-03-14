@@ -1,35 +1,33 @@
 #!/bin/bash
 
 # Install dependencies
-echo "Installing dependencies..."
 npm install
 
-# Install jsonwebtoken explicitly
-echo "Installing jsonwebtoken explicitly..."
-npm install jsonwebtoken @types/jsonwebtoken
+# Build client
+npm run build
 
-# Build the client manually without using npm scripts
-echo "Building client..."
-npx tsc
-npx vite build
+# Build server
+npm run build:server
 
-# Build the server manually
-echo "Building server..."
-npx tsc -p tsconfig.server.json
-
-# Create the directory structure
+# Create a proper directory structure for Render
 echo "Creating directory structure..."
 mkdir -p dist/server
-cp -r dist/server/* dist/server/ 2>/dev/null || true
 
-# Print directory structure for debugging
+# Copy server files to dist/server
+cp -r dist/server/* dist/server/
+
+# Install any missing dependencies
+echo "Installing jsonwebtoken explicitly..."
+npm install jsonwebtoken bcryptjs mongodb cors express dotenv openai axios
+
+# Log directory structure
 echo "Directory structure:"
 ls -la
 echo "dist directory:"
-ls -la dist || echo "dist directory not found"
+ls -la dist
 echo "server directory:"
-ls -la server || echo "server directory not found"
+ls -la server
 echo "dist/server directory:"
-ls -la dist/server || echo "dist/server directory not found"
+ls -la dist/server
 
 echo "Build completed successfully!" 

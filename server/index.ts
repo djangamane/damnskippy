@@ -69,7 +69,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Add request logging middleware
-app.use((req: Request, res: Response, next: Function) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
 });
@@ -124,7 +124,7 @@ const authenticateToken: RequestHandler = (req: AuthRequest, res: Response, next
 };
 
 // Authentication Routes
-const signUpHandler: RequestHandler = async (req, res) => {
+const signUpHandler: RequestHandler = async (req: Request, res: Response) => {
   try {
     const { email, password, displayName } = req.body as SignUpBody;
     
@@ -174,7 +174,7 @@ const signUpHandler: RequestHandler = async (req, res) => {
   }
 };
 
-const signInHandler: RequestHandler = async (req, res) => {
+const signInHandler: RequestHandler = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body as SignInBody;
     
@@ -218,7 +218,7 @@ const signInHandler: RequestHandler = async (req, res) => {
   }
 };
 
-const signOutHandler: RequestHandler = (req, res) => {
+const signOutHandler: RequestHandler = (req: Request, res: Response) => {
   res.json({ message: 'Signed out successfully' });
 };
 
@@ -657,49 +657,22 @@ app.post('/api/research', async (req: Request<{}, {}, ResearchRequest>, res: Res
   }
 });
 
-// Serve static files in production AFTER API routes
-if (process.env.NODE_ENV === 'production') {
-  // Try multiple possible paths for the dist directory
-  const possibleDistPaths = [
-    path.resolve(__dirname, '../../dist'),
-    path.resolve(__dirname, '../dist'),
-    path.resolve(process.cwd(), 'dist')
-  ];
-  
-  let distPath = '';
-  for (const path of possibleDistPaths) {
-    try {
-      if (fs.existsSync(path)) {
-        distPath = path;
-        console.log(`Found dist directory at: ${distPath}`);
-        break;
-      }
-    } catch (err) {
-      console.error(`Error checking path ${path}:`, err);
-    }
-  }
-  
-  if (!distPath) {
-    console.error('Could not find dist directory. Static files will not be served.');
-  } else {
-    app.use(express.static(distPath));
-    
-    // Serve index.html for any unknown routes (SPA fallback)
-    app.get('*', (req: Request, res: Response) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-}
+// Serve static files from the dist directory
+const distPath = path.resolve(__dirname, '../../');
+console.log('Found dist directory at:', distPath);
+app.use(express.static(distPath));
 
-// Error handling middleware
-app.use((err: Error, req: Request, res: Response, next: Function) => {
-  console.error('Server error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+// Catch-all route to serve index.html for client-side routing
+app.get('*', (req: Request, res: Response) => {
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
-// Start server
+// Start the server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Environment:', process.env.NODE_ENV || 'development');
-}); 
+});
+
+// Export the app for testing
+export default app; 
