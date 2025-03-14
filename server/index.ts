@@ -54,10 +54,20 @@ connectToMongo();
 // Configure CORS
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://earnest-chimera-9ffaeb.netlify.app', 'https://damnskippy.onrender.com', 'https://skipthegames4ai.com', 'https://www.skipthegames4ai.com', 'https://damnskippy.onrender.com', 'https://skipthegames4ai.netlify.app', '*']
+    ? [
+        'https://earnest-chimera-9ffaeb.netlify.app', 
+        'https://damnskippy.onrender.com', 
+        'https://skipthegames4ai.com', 
+        'https://www.skipthegames4ai.com', 
+        'https://damnskippy.onrender.com', 
+        'https://skipthegames4ai.netlify.app',
+        'http://localhost:3000',
+        'http://localhost:5173'
+      ]
     : true, // Allow all origins in development
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Authorization'],
   credentials: true
 }));
 
@@ -174,13 +184,16 @@ const signUpHandler: RequestHandler = async (req: Request, res: Response) => {
   }
 };
 
-const signInHandler: RequestHandler = async (req: Request, res: Response) => {
+const signInHandler = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body as SignInBody;
+    
+    console.log('Sign-in attempt for email:', email);
     
     // Find user
     const user = await db.collection('users').findOne({ email: email.toLowerCase() });
     if (!user) {
+      console.log('User not found:', email);
       res.status(401).json({ error: 'Invalid email or password' });
       return;
     }
@@ -188,9 +201,12 @@ const signInHandler: RequestHandler = async (req: Request, res: Response) => {
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
+      console.log('Invalid password for user:', email);
       res.status(401).json({ error: 'Invalid email or password' });
       return;
     }
+
+    console.log('User authenticated successfully:', email);
 
     // Update last login
     await db.collection('users').updateOne(
@@ -207,6 +223,9 @@ const signInHandler: RequestHandler = async (req: Request, res: Response) => {
       process.env.JWT_SECRET as string,
       { expiresIn: '7d' }
     );
+    
+    // Set token in response header
+    res.setHeader('Authorization', `Bearer ${token}`);
     
     res.json({
       data: userWithoutPassword,
@@ -702,7 +721,7 @@ app.use(express.static(distPath, {
 }));
 
 // Catch-all route to serve index.html for client-side routing (SPA fallback)
-app.get('*', (req: Request, res: Response, next: NextFunction) => {
+app.get('*', function(req: Request, res: Response, next: NextFunction) {
   // Skip API routes
   if (req.url.startsWith('/api/')) {
     return next();
@@ -713,10 +732,10 @@ app.get('*', (req: Request, res: Response, next: NextFunction) => {
   
   // Check if index.html exists before sending
   if (fs.existsSync(indexPath)) {
-    return res.sendFile(indexPath);
+    res.sendFile(indexPath);
   } else {
     console.error(`Error: index.html not found at ${indexPath}`);
-    return res.status(404).send('index.html not found');
+    res.status(404).send('index.html not found');
   }
 });
 

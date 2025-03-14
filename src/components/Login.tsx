@@ -18,14 +18,29 @@ const Login = () => {
     setLoading(true);
     
     try {
+      console.log(`Attempting to ${isLogin ? 'sign in' : 'sign up'} with email: ${email}`);
+      
       if (isLogin) {
         await signIn(email, password);
       } else {
         await signUp(email, password, displayName);
       }
+      
+      console.log('Authentication successful, redirecting to dashboard');
       navigate('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to authenticate');
+      console.error('Authentication error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to authenticate';
+      setError(errorMessage);
+      
+      // Add more detailed error message for common issues
+      if (errorMessage.includes('Network Error')) {
+        setError('Network error: Please check your internet connection or try again later.');
+      } else if (errorMessage.includes('401')) {
+        setError('Invalid email or password. Please try again.');
+      } else if (errorMessage.includes('404')) {
+        setError('Authentication service not available. Please try again later.');
+      }
     } finally {
       setLoading(false);
     }

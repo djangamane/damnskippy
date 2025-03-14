@@ -65,13 +65,21 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       setError(null);
+      console.log('Attempting to sign in with email:', email);
+      
       const response = await axios.post(`${config.apiUrl}/api/auth/signin`, {
         email,
         password
       });
       
+      console.log('Sign-in response:', response.data);
+      
       const userData = response.data.data;
       const authToken = response.data.token;
+      
+      if (!userData || !authToken) {
+        throw new Error('Invalid response from server');
+      }
       
       setUser(userData);
       setToken(authToken);
@@ -82,10 +90,13 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       // Set the token in axios headers for all future requests
       axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Invalid email or password';
-      setError(message);
-      throw new Error(message);
+      
+      console.log('User authenticated successfully');
+    } catch (err: any) {
+      console.error('Sign-in error:', err);
+      const errorMessage = err.response?.data?.error || err.message || 'Invalid email or password';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
