@@ -10,9 +10,14 @@
 /build
 /dist
 
-# misc
-.DS_Store
+# environment variables - ensure ALL env files are ignored
 .env
+.env.*
+!.env.example
+.env.server
+.env.development
+.env.test
+.env.production
 .env.local
 .env.development.local
 .env.test.local
