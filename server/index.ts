@@ -968,7 +968,7 @@ app.get('*', (req: Request, res: Response, next: NextFunction) => {
 });
 
 // Define the assets list handler as a separate function
-const assetsListHandler: RequestHandler = (req: Request, res: Response) => {
+const assetsListHandler = (req: Request, res: Response) => {
   console.log('Received request for assets list');
   console.log('Current working directory:', process.cwd());
   console.log('__dirname:', __dirname);
@@ -999,7 +999,8 @@ const assetsListHandler: RequestHandler = (req: Request, res: Response) => {
         const files = fs.readdirSync(dir);
         console.log(`Files in assets directory: ${files.join(', ')}`);
         filesFound = true;
-        return res.json(files);
+        res.json(files);
+        return;
       } catch (error) {
         console.error(`Error reading directory ${dir}:`, error);
       }
@@ -1018,7 +1019,8 @@ const assetsListHandler: RequestHandler = (req: Request, res: Response) => {
         const files = fs.readdirSync(publicAssetsDir);
         console.log(`Files in public/assets directory: ${files.join(', ')}`);
         // Return these files with a special prefix to indicate they're from public/assets
-        return res.json(files);
+        res.json(files);
+        return;
       } catch (error) {
         console.error(`Error reading public/assets directory:`, error);
       }

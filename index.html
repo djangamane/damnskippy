@@ -5,7 +5,8 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>skipthegames4AI.com - AI-Powered Research Automation</title>
-    <link rel="stylesheet" href="/assets/index-Chkt9qtP.css">
+    <!-- Use a relative path for CSS that will be processed by Vite -->
+    <link rel="stylesheet" href="./src/index.css">
     <script>
       // Add early logging to track page load
       console.log('Page loading started at:', new Date().toISOString());
@@ -19,7 +20,8 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/assets/index-D51VyPyo.js"></script>
+    <!-- Use the entry point that Vite expects -->
+    <script type="module" src="./src/main.tsx"></script>
     <script>
       // Add window load event listener
       window.addEventListener('load', function() {
@@ -31,7 +33,7 @@
       window.onerror = function(message, source, lineno, colno, error) {
         console.error('Global error caught in index.html:', { message, source, lineno, colno });
         // If there's an error loading the main script, try the fallback
-        if (source && source.includes('index-D51VyPyo.js')) {
+        if (source && source.includes('main.tsx')) {
           console.log('Error loading main script, trying fallback...');
           const script = document.createElement('script');
           script.src = '/assets/main.js';
