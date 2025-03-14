@@ -3,7 +3,7 @@ services:
     name: damnskippy
     env: node
     buildCommand: chmod +x ./build.sh && ./build.sh
-    startCommand: node server.js
+    startCommand: node server.mjs
     envVars:
       - key: NODE_ENV
         value: production

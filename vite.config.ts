@@ -1,34 +1,28 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
-  // Load env file based on `mode` in the current working directory.
-  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
-  const env = loadEnv(mode, process.cwd(), '');
-  
-  return {
-    plugins: [react()],
-    optimizeDeps: {
-      exclude: ['lucide-react'],
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    outDir: 'dist',
+    emptyOutDir: false, // Don't empty the outDir as it might contain server files
+    rollupOptions: {
+      output: {
+        // Ensure proper MIME types for JavaScript modules
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+      },
     },
-    define: {
-      'process.env': env
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, './src')
-      }
-    },
-    server: {
-      proxy: {
-        '/api': {
-          target: 'http://localhost:3001',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '')
-        }
-      }
-    }
-  };
+  },
 });

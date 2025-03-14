@@ -657,10 +657,25 @@ app.post('/api/research', async (req: Request<{}, {}, ResearchRequest>, res: Res
   }
 });
 
-// Serve static files from the dist directory
+// Serve static files from the dist directory with proper MIME types
 const distPath = path.resolve(__dirname, '../../');
 console.log('Found dist directory at:', distPath);
-app.use(express.static(distPath));
+
+// Set proper MIME types for JavaScript modules
+app.use(express.static(distPath, {
+  setHeaders: (res, path) => {
+    // Set proper MIME type for JavaScript modules
+    if (path.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    } else if (path.endsWith('.mjs')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    } else if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css');
+    } else if (path.endsWith('.html')) {
+      res.setHeader('Content-Type', 'text/html');
+    }
+  }
+}));
 
 // Catch-all route to serve index.html for client-side routing
 app.get('*', (req: Request, res: Response) => {
