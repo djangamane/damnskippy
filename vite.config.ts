@@ -10,6 +10,12 @@ export default defineConfig({
     emptyOutDir: false, // Don't empty the outDir as it might contain server files
     assetsDir: 'assets',
     sourcemap: false,
+    manifest: true, // Generate a manifest for asset lookup
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+      },
+    },
   },
   server: {
     proxy: {
@@ -21,4 +27,9 @@ export default defineConfig({
   },
   // Copy public assets to dist
   publicDir: 'public',
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
 });

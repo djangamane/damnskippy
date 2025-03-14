@@ -4,9 +4,29 @@
 echo "Creating directory structure..."
 mkdir -p dist/server
 
+# Clean up any previous build artifacts
+echo "Cleaning up previous build artifacts..."
+rm -rf dist/assets dist/index.html
+
 # Build the client
 echo "Building client..."
 npm run build
+
+# Verify client build output
+echo "Verifying client build output..."
+if [ -f "dist/index.html" ]; then
+  echo "✅ index.html exists in dist directory"
+else
+  echo "❌ index.html is missing from dist directory"
+fi
+
+if [ -d "dist/assets" ]; then
+  echo "✅ assets directory exists"
+  echo "Assets directory contents:"
+  ls -la dist/assets
+else
+  echo "❌ assets directory is missing"
+fi
 
 # Copy server files
 echo "Copying server files..."
@@ -14,38 +34,25 @@ cp -r server/* dist/server/
 
 # Compile server TypeScript files
 echo "Building server..."
-# Use --skipLibCheck and --noEmitOnError to ignore TypeScript errors
-npx tsc -p tsconfig.server.json --skipLibCheck --noEmitOnError
+# Use --skipLibCheck to ignore TypeScript errors in libraries
+npx tsc -p tsconfig.server.json --skipLibCheck
 
 # Create ES module version of server.js
 echo "Creating ES module version of server.js..."
 cp dist/server/index.js server.js
-cp dist/server/index.js server.mjs
+
+# Ensure public assets are copied to dist
+echo "Copying public assets to dist..."
+if [ -d "public" ]; then
+  cp -r public dist/
+  echo "✅ Public assets copied to dist/public"
+else
+  echo "❌ Public directory not found"
+fi
 
 # Install critical dependencies
 echo "Installing critical dependencies..."
 npm install express cors dotenv openai axios bcryptjs jsonwebtoken mongodb
-
-# Build client
-npm run build
-
-# Build server
-npm run build:server
-
-# Create a proper directory structure for Render
-echo "Creating directory structure..."
-mkdir -p dist/server
-
-# Copy server files to dist/server (ensure we're not copying to the same location)
-if [ -d "dist/server" ]; then
-  echo "Copying server files..."
-  # List the files to verify
-  ls -la dist/server/
-fi
-
-# Install any missing dependencies
-echo "Installing critical dependencies..."
-npm install jsonwebtoken bcryptjs mongodb cors express dotenv openai axios
 
 # Log directory structure
 echo "Directory structure:"

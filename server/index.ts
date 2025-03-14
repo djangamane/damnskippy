@@ -658,224 +658,8 @@ app.post('/api/research', async (req: Request<{}, {}, ResearchRequest>, res: Res
 });
 
 // Serve static files from the dist directory with proper MIME types
-const distPath = path.resolve(__dirname, '../../');
+const distPath = path.resolve(__dirname, '../../dist');
 console.log('Found dist directory at:', distPath);
-
-// Handle favicon.ico and vite.svg requests
-app.get('/vite.svg', (req: Request, res: Response) => {
-  // Try to serve from public dir first, then from assets
-  const publicPath = path.join(distPath, 'public', 'vite.svg');
-  const assetsPath = path.join(distPath, 'assets', 'vite.svg');
-  
-  if (fs.existsSync(publicPath)) {
-    res.sendFile(publicPath);
-  } else if (fs.existsSync(assetsPath)) {
-    res.sendFile(assetsPath);
-  } else {
-    // If not found, just return 204
-    res.status(204).end();
-  }
-});
-
-// Add a specific handler for /src/main.tsx
-app.get('/src/main.tsx', (req: Request, res: Response) => {
-  console.log('Received request for /src/main.tsx');
-  
-  // In production, we should redirect to the built JS file
-  if (process.env.NODE_ENV === 'production') {
-    console.log('In production mode, redirecting to built JS file');
-    
-    // Look for JS files in the assets directory
-    const assetsDir = path.join(distPath, 'assets');
-    console.log(`Looking for JS files in ${assetsDir}`);
-    
-    if (fs.existsSync(assetsDir)) {
-      try {
-        // List all files in the assets directory
-        const allFiles = fs.readdirSync(assetsDir);
-        console.log(`All files in assets directory: ${allFiles.join(', ')}`);
-        
-        // Filter for JavaScript files
-        const jsFiles = allFiles.filter(file => file.endsWith('.js'));
-        console.log(`Found JS files in assets directory: ${jsFiles.join(', ')}`);
-        
-        if (jsFiles.length > 0) {
-          // Find the main bundle (usually starts with 'index-')
-          const mainJsFile = jsFiles.find(file => file.startsWith('index-')) || jsFiles[0];
-          const redirectUrl = `/assets/${mainJsFile}`;
-          
-          console.log(`Redirecting to ${redirectUrl}`);
-          return res.redirect(redirectUrl);
-        } else {
-          console.log('No JavaScript files found in assets directory');
-        }
-      } catch (error) {
-        console.error('Error reading assets directory:', error);
-      }
-    } else {
-      console.log(`Assets directory not found at ${assetsDir}`);
-      
-      // Try to find the assets directory in other locations
-      const possibleAssetsDirs = [
-        path.join(distPath, 'assets'),
-        path.join(distPath, 'dist', 'assets'),
-        path.join(__dirname, '..', 'assets'),
-        path.join(__dirname, '..', '..', 'assets'),
-        path.join(process.cwd(), 'assets'),
-        path.join(process.cwd(), 'dist', 'assets')
-      ];
-      
-      for (const dir of possibleAssetsDirs) {
-        console.log(`Checking for assets directory at ${dir}`);
-        if (fs.existsSync(dir)) {
-          console.log(`Found assets directory at ${dir}`);
-          try {
-            const jsFiles = fs.readdirSync(dir).filter(file => file.endsWith('.js'));
-            console.log(`Found JS files in ${dir}: ${jsFiles.join(', ')}`);
-            
-            if (jsFiles.length > 0) {
-              const mainJsFile = jsFiles.find(file => file.startsWith('index-')) || jsFiles[0];
-              const redirectUrl = `/assets/${mainJsFile}`;
-              
-              console.log(`Redirecting to ${redirectUrl}`);
-              return res.redirect(redirectUrl);
-            }
-          } catch (error) {
-            console.error(`Error reading directory ${dir}:`, error);
-          }
-        }
-      }
-    }
-    
-    console.log('No suitable JS file found to redirect to');
-    
-    // If we can't find a JavaScript file, serve the index.html file
-    console.log('Serving index.html as a fallback');
-    return res.sendFile(path.join(distPath, 'index.html'));
-  }
-  
-  // In development, try to serve the actual file
-  const srcPath = path.join(distPath, 'src', 'main.tsx');
-  
-  if (fs.existsSync(srcPath)) {
-    console.log(`Found main.tsx at ${srcPath}, serving with application/javascript MIME type`);
-    res.setHeader('Content-Type', 'application/javascript');
-    res.sendFile(srcPath);
-  } else {
-    console.log(`main.tsx not found at ${srcPath}`);
-    res.status(404).send('Not found');
-  }
-});
-
-// Add a specific handler for the known built JavaScript file
-app.get('/assets/index-8fdnOYjb.js', (req: Request, res: Response) => {
-  console.log('Received request for /assets/index-8fdnOYjb.js');
-  
-  const jsFilePath = path.join(distPath, 'assets', 'index-8fdnOYjb.js');
-  
-  if (fs.existsSync(jsFilePath)) {
-    console.log(`Found index-8fdnOYjb.js at ${jsFilePath}, serving with application/javascript MIME type`);
-    res.setHeader('Content-Type', 'application/javascript');
-    res.sendFile(jsFilePath);
-  } else {
-    console.log(`JavaScript file not found at ${jsFilePath}`);
-    res.status(404).send('Not found');
-  }
-});
-
-// Add a specific handler for the correct JavaScript file
-app.get('/assets/index-D51VyPyo.js', (req: Request, res: Response) => {
-  console.log('Received request for /assets/index-D51VyPyo.js');
-  
-  const jsFilePath = path.join(distPath, 'assets', 'index-D51VyPyo.js');
-  
-  if (fs.existsSync(jsFilePath)) {
-    console.log(`Found index-D51VyPyo.js at ${jsFilePath}, serving with application/javascript MIME type`);
-    res.setHeader('Content-Type', 'application/javascript');
-    res.sendFile(jsFilePath);
-  } else {
-    console.log(`JavaScript file not found at ${jsFilePath}`);
-    res.status(404).send('Not found');
-  }
-});
-
-// Add a general handler for any JavaScript files in the assets directory
-app.get('/assets/*.js', (req: Request, res: Response) => {
-  console.log(`Received request for ${req.path}`);
-  
-  // Extract the filename from the path
-  const filename = path.basename(req.path);
-  const jsFilePath = path.join(distPath, 'assets', filename);
-  
-  console.log(`Looking for JavaScript file at ${jsFilePath}`);
-  
-  if (fs.existsSync(jsFilePath)) {
-    console.log(`Found ${filename} at ${jsFilePath}, serving with application/javascript MIME type`);
-    res.setHeader('Content-Type', 'application/javascript');
-    res.sendFile(jsFilePath);
-  } else {
-    console.log(`JavaScript file not found at ${jsFilePath}`);
-    
-    // Try to find the assets directory in other locations
-    const possibleAssetsDirs = [
-      path.join(distPath, 'assets'),
-      path.join(distPath, 'dist', 'assets'),
-      path.join(__dirname, '..', 'assets'),
-      path.join(__dirname, '..', '..', 'assets'),
-      path.join(process.cwd(), 'assets'),
-      path.join(process.cwd(), 'dist', 'assets')
-    ];
-    
-    for (const dir of possibleAssetsDirs) {
-      console.log(`Checking for assets directory at ${dir}`);
-      if (fs.existsSync(dir)) {
-        console.log(`Found assets directory at ${dir}`);
-        
-        // Check if the exact file exists in this directory
-        const exactFilePath = path.join(dir, filename);
-        if (fs.existsSync(exactFilePath)) {
-          console.log(`Found ${filename} at ${exactFilePath}, serving with application/javascript MIME type`);
-          res.setHeader('Content-Type', 'application/javascript');
-          res.sendFile(exactFilePath);
-          return;
-        }
-        
-        try {
-          // If the exact file doesn't exist, try to find any JavaScript file in the assets directory
-          const jsFiles = fs.readdirSync(dir).filter(file => file.endsWith('.js'));
-          console.log(`Available JavaScript files in ${dir}: ${jsFiles.join(', ')}`);
-          
-          if (jsFiles.length > 0) {
-            // If the requested file starts with 'index-', try to find a matching pattern
-            if (filename.startsWith('index-')) {
-              const indexJsFiles = jsFiles.filter(file => file.startsWith('index-'));
-              if (indexJsFiles.length > 0) {
-                const indexJsFile = indexJsFiles[0];
-                const indexJsFilePath = path.join(dir, indexJsFile);
-                console.log(`Serving ${indexJsFile} instead of ${filename} with application/javascript MIME type`);
-                res.setHeader('Content-Type', 'application/javascript');
-                res.sendFile(indexJsFilePath);
-                return;
-              }
-            }
-            
-            // If no matching pattern found, serve the first JavaScript file
-            const jsFilePath = path.join(dir, jsFiles[0]);
-            console.log(`Serving ${jsFiles[0]} instead of ${filename} with application/javascript MIME type`);
-            res.setHeader('Content-Type', 'application/javascript');
-            res.sendFile(jsFilePath);
-            return;
-          }
-        } catch (error) {
-          console.error(`Error reading directory ${dir}:`, error);
-        }
-      }
-    }
-    
-    console.log(`No suitable JavaScript file found for ${req.path}`);
-    res.status(404).send('Not found');
-  }
-});
 
 // Set proper MIME types for all files
 app.use(express.static(distPath, {
@@ -917,54 +701,23 @@ app.use(express.static(distPath, {
   }
 }));
 
-// Add a specific handler for the fallback JavaScript file
-app.get('/assets/main.js', (req: Request, res: Response) => {
-  console.log('Received request for fallback JavaScript file /assets/main.js');
-  
-  // First try to find it in the assets directory
-  const assetsPath = path.join(distPath, 'assets', 'main.js');
-  if (fs.existsSync(assetsPath)) {
-    console.log(`Found fallback JavaScript file at ${assetsPath}`);
-    res.setHeader('Content-Type', 'application/javascript');
-    return res.sendFile(assetsPath);
-  }
-  
-  // If not found in assets, try the public/assets directory
-  const publicAssetsPath = path.join(distPath, 'public', 'assets', 'main.js');
-  if (fs.existsSync(publicAssetsPath)) {
-    console.log(`Found fallback JavaScript file at ${publicAssetsPath}`);
-    res.setHeader('Content-Type', 'application/javascript');
-    return res.sendFile(publicAssetsPath);
-  }
-  
-  console.log('Fallback JavaScript file not found');
-  res.status(404).send('Not found');
-});
-
-// Add a specific handler for the public assets fallback JavaScript file
-app.get('/public/assets/main.js', (req: Request, res: Response) => {
-  console.log('Received request for public fallback JavaScript file /public/assets/main.js');
-  
-  const publicAssetsPath = path.join(distPath, 'public', 'assets', 'main.js');
-  if (fs.existsSync(publicAssetsPath)) {
-    console.log(`Found public fallback JavaScript file at ${publicAssetsPath}`);
-    res.setHeader('Content-Type', 'application/javascript');
-    return res.sendFile(publicAssetsPath);
-  }
-  
-  console.log('Public fallback JavaScript file not found');
-  res.status(404).send('Not found');
-});
-
 // Catch-all route to serve index.html for client-side routing (SPA fallback)
 app.get('*', (req: Request, res: Response, next: NextFunction) => {
-  // Skip API routes and static assets that exist
+  // Skip API routes
   if (req.url.startsWith('/api/')) {
     return next();
   }
   
-  // Handle SPA routes by sending index.html
-  res.sendFile(path.join(distPath, 'index.html'));
+  const indexPath = path.join(distPath, 'index.html');
+  console.log(`Serving index.html from ${indexPath} for path: ${req.url}`);
+  
+  // Check if index.html exists before sending
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  } else {
+    console.error(`Error: index.html not found at ${indexPath}`);
+    return res.status(404).send('index.html not found');
+  }
 });
 
 // Define the assets list handler as a separate function
