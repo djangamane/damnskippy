@@ -20,6 +20,9 @@ const Login = () => {
     try {
       console.log(`Attempting to ${isLogin ? 'sign in' : 'sign up'} with email: ${email}`);
       
+      // Add a timestamp to help with debugging
+      console.log('Authentication request started at:', new Date().toISOString());
+      
       if (isLogin) {
         await signIn(email, password);
       } else {
@@ -40,7 +43,17 @@ const Login = () => {
         setError('Invalid email or password. Please try again.');
       } else if (errorMessage.includes('404')) {
         setError('Authentication service not available. Please try again later.');
+      } else if (errorMessage.includes('500')) {
+        setError('Server error: Please try again later or contact support.');
       }
+      
+      // Log the error to the console for debugging
+      console.error('Authentication error details:', {
+        error: err,
+        email,
+        isLogin,
+        timestamp: new Date().toISOString()
+      });
     } finally {
       setLoading(false);
     }
