@@ -661,6 +661,16 @@ app.post('/api/research', async (req: Request<{}, {}, ResearchRequest>, res: Res
 const distPath = path.resolve(__dirname, '../../');
 console.log('Found dist directory at:', distPath);
 
+// Handle specific static file requests that might be causing issues
+app.get('/vite.svg', (req: Request, res: Response) => {
+  res.sendFile(path.join(distPath, 'public', 'vite.svg'));
+});
+
+app.get('/src/main.tsx', (req: Request, res: Response) => {
+  // Redirect to the built JS file
+  res.redirect('/assets/index-8fdnOYjb.js');
+});
+
 // Set proper MIME types for JavaScript modules
 app.use(express.static(distPath, {
   setHeaders: (res, path) => {
@@ -673,12 +683,18 @@ app.use(express.static(distPath, {
       res.setHeader('Content-Type', 'text/css');
     } else if (path.endsWith('.html')) {
       res.setHeader('Content-Type', 'text/html');
+    } else if (path.endsWith('.svg')) {
+      res.setHeader('Content-Type', 'image/svg+xml');
     }
   }
 }));
 
 // Catch-all route to serve index.html for client-side routing
-app.get('*', (req: Request, res: Response) => {
+app.get('*', (req: Request, res: Response, next: NextFunction) => {
+  // Skip API routes
+  if (req.url.startsWith('/api/')) {
+    return next();
+  }
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
