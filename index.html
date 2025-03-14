@@ -9,9 +9,37 @@
   <body>
     <div id="root"></div>
     <!-- 
-      During development, this will use /src/main.tsx
-      During production build, Vite will replace this with the correct path
+      This is a simple placeholder that will be replaced by the actual script during build.
+      We're not using any specific file names to avoid issues with hashed filenames.
     -->
-    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Dynamically load the main JavaScript file
+      window.addEventListener('DOMContentLoaded', function() {
+        // Try to fetch the list of files in the assets directory
+        fetch('/api/assets-list')
+          .then(response => response.json())
+          .then(files => {
+            // Find the main JavaScript file (usually starts with 'index-' and ends with '.js')
+            const mainJsFile = files.find(file => file.startsWith('index-') && file.endsWith('.js'));
+            if (mainJsFile) {
+              // Create a script element and append it to the body
+              const script = document.createElement('script');
+              script.type = 'module';
+              script.src = '/assets/' + mainJsFile;
+              document.body.appendChild(script);
+            } else {
+              console.error('No main JavaScript file found');
+            }
+          })
+          .catch(error => {
+            console.error('Error loading assets list:', error);
+            // Fallback: try to load a script with a generic name
+            const script = document.createElement('script');
+            script.type = 'module';
+            script.src = '/assets/main.js';
+            document.body.appendChild(script);
+          });
+      });
+    </script>
   </body>
 </html>

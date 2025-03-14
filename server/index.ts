@@ -928,6 +928,39 @@ app.get('*', (req: Request, res: Response, next: NextFunction) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
+// Add an API endpoint to list files in the assets directory
+app.get('/api/assets-list', (req: Request, res: Response) => {
+  console.log('Received request for assets list');
+  
+  // Try to find the assets directory in various locations
+  const possibleAssetsDirs = [
+    path.join(distPath, 'assets'),
+    path.join(distPath, 'dist', 'assets'),
+    path.join(__dirname, '..', 'assets'),
+    path.join(__dirname, '..', '..', 'assets'),
+    path.join(process.cwd(), 'assets'),
+    path.join(process.cwd(), 'dist', 'assets')
+  ];
+  
+  for (const dir of possibleAssetsDirs) {
+    console.log(`Checking for assets directory at ${dir}`);
+    if (fs.existsSync(dir)) {
+      console.log(`Found assets directory at ${dir}`);
+      try {
+        const files = fs.readdirSync(dir);
+        console.log(`Files in assets directory: ${files.join(', ')}`);
+        return res.json(files);
+      } catch (error) {
+        console.error(`Error reading directory ${dir}:`, error);
+      }
+    }
+  }
+  
+  // If no assets directory found, return an empty array
+  console.log('No assets directory found');
+  res.json([]);
+});
+
 // Start the server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
