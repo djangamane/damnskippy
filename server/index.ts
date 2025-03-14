@@ -239,6 +239,12 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'healthy' });
 });
 
+// Handle favicon.ico requests
+app.get('/favicon.ico', (req: Request, res: Response) => {
+  // Return a 204 No Content if favicon doesn't exist
+  res.status(204).end();
+});
+
 // Initialize OpenAI client
 let openai: OpenAI | null = null;
 if (!process.env.OPENAI_API_KEY) {
