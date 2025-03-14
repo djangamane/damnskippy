@@ -18,7 +18,7 @@ dotenv.config({ path: '.env.server' });
 dotenv.config({ path: '.env' });
 
 // Validate required environment variables
-const requiredEnvVars = ['OPENAI_API_KEY', 'VITE_MONGODB_URI', 'JWT_SECRET'];
+const requiredEnvVars = ['OPENAI_API_KEY', 'MONGODB_URI', 'JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
@@ -27,7 +27,7 @@ if (missingEnvVars.length > 0) {
 }
 
 console.log('Environment variables loaded:', {
-  MONGODB_URI: process.env.VITE_MONGODB_URI || 'Not set',
+  MONGODB_URI: process.env.MONGODB_URI ? 'Set (hidden)' : 'Not set',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'Set (hidden)' : 'Not set',
   JWT_SECRET: process.env.JWT_SECRET ? 'Set (hidden)' : 'Not set'
 });
@@ -35,7 +35,7 @@ console.log('Environment variables loaded:', {
 const app = express();
 
 // MongoDB setup
-const mongoClient = new MongoClient(process.env.VITE_MONGODB_URI as string);
+const mongoClient = new MongoClient(process.env.MONGODB_URI as string);
 let db: any;
 
 async function connectToMongo() {
@@ -64,7 +64,7 @@ app.use(cors({
         'http://localhost:3000',
         'http://localhost:5173'
       ]
-    : true, // Allow all origins in development
+    : '*', // Allow all origins in development
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Authorization'],
@@ -186,7 +186,14 @@ const signUpHandler: RequestHandler = async (req: Request, res: Response) => {
 
 const signInHandler = async (req: Request, res: Response): Promise<void> => {
   try {
+    console.log('Sign-in request received:', req.body);
     const { email, password } = req.body as SignInBody;
+    
+    if (!email || !password) {
+      console.log('Missing email or password in request');
+      res.status(400).json({ error: 'Email and password are required' });
+      return;
+    }
     
     console.log('Sign-in attempt for email:', email);
     
@@ -198,6 +205,8 @@ const signInHandler = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    console.log('User found, verifying password');
+    
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
@@ -224,9 +233,12 @@ const signInHandler = async (req: Request, res: Response): Promise<void> => {
       { expiresIn: '7d' }
     );
     
+    console.log('JWT token generated successfully');
+    
     // Set token in response header
     res.setHeader('Authorization', `Bearer ${token}`);
     
+    console.log('Sending successful response');
     res.json({
       data: userWithoutPassword,
       token
