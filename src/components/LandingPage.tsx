@@ -39,8 +39,26 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, navigate }) => {
   if (!isOpen) return null;
 
   const handleSignIn = async (provider: string) => {
-    await signIn(provider);
-    navigate('/dashboard');
+    switch (provider) {
+      case 'email':
+        // Redirect to the login page for email login
+        navigate('/login');
+        onClose();
+        break;
+      
+      case 'google':
+        // Redirect to Google OAuth URL
+        window.location.href = `${import.meta.env.VITE_API_URL || 'https://damnskippy.onrender.com'}/api/auth/google`;
+        break;
+      
+      case 'github':
+        // Redirect to GitHub OAuth URL
+        window.location.href = `${import.meta.env.VITE_API_URL || 'https://damnskippy.onrender.com'}/api/auth/github`;
+        break;
+      
+      default:
+        console.error('Unknown provider:', provider);
+    }
   };
 
   return (
