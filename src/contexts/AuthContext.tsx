@@ -64,10 +64,17 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Validate inputs
-      if (!email || !password) {
+      // Double check that both values exist and aren't just whitespace
+      if (!email || !email.trim() || !password || !password.trim()) {
         const errorMessage = 'Email and password are required';
-        console.error(errorMessage);
+        console.error(errorMessage, {
+          emailProvided: !!email,
+          emailEmpty: email === '',
+          emailWhitespace: email && email.trim() === '',
+          passwordProvided: !!password,
+          passwordEmpty: password === '',
+          passwordWhitespace: password && password.trim() === ''
+        });
         setError(errorMessage);
         throw new Error(errorMessage);
       }
@@ -79,18 +86,30 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const requestTimestamp = new Date().toISOString();
       console.log('Sign-in request started at:', requestTimestamp);
       
+      // Trim and validate the credentials again to be extra safe
+      const trimmedEmail = email.trim();
+      const trimmedPassword = password.trim();
+      
+      if (!trimmedEmail || !trimmedPassword) {
+        const errorMessage = 'Email and password are required (post-trim validation)';
+        console.error(errorMessage);
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      }
+      
       // Log the request payload for debugging
       console.log('Sign-in request payload:', {
-        email,
-        password: password ? '********' : 'MISSING', // Don't log the actual password
+        email: trimmedEmail,
+        passwordProvided: !!trimmedPassword,
+        passwordLength: trimmedPassword.length,
         apiUrl: `${config.apiUrl}/api/auth/signin`,
         timestamp: requestTimestamp
       });
       
       // Explicitly create request data to ensure proper format
       const requestData = {
-        email: email.trim(),
-        password: password.trim()
+        email: trimmedEmail,
+        password: trimmedPassword
       };
       
       // Ensure headers are explicitly set
@@ -100,6 +119,24 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       };
       
       console.log('Using explicit headers and request data format');
+      
+      // Perform a direct POST using fetch for extra debugging
+      try {
+        console.log('Attempting fetch call as fallback verification');
+        const fetchResponse = await fetch(`${config.apiUrl}/api/auth/signin`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: trimmedEmail,
+            password: trimmedPassword
+          })
+        });
+        console.log('Fetch response status:', fetchResponse.status);
+      } catch (fetchErr) {
+        console.log('Fetch verification failed, continuing with axios:', fetchErr);
+      }
       
       const response = await axios.post(
         `${config.apiUrl}/api/auth/signin`, 
@@ -111,6 +148,10 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('Sign-in response status:', response.status);
       console.log('Sign-in response headers:', response.headers);
       console.log('Sign-in response has data:', !!response.data);
+      
+      if (!response.data) {
+        throw new Error('No data received from server');
+      }
       
       const userData = response.data.data;
       const authToken = response.data.token;
@@ -140,6 +181,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${finalToken}`;
       
       console.log('User authenticated successfully');
+      return userData; // Return the user data for the component to use if needed
     } catch (err: any) {
       console.error('Sign-in error:', err);
       

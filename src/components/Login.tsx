@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -12,22 +12,56 @@ const Login = () => {
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
+  // Debug store to persist values through minification
+  const [debug, setDebug] = useState({
+    lastAttempt: null as any,
+    submitCount: 0
+  });
+
+  useEffect(() => {
+    console.log('Login component mounted');
+    
+    // Log any prefilled values from localStorage for debugging
+    const storedEmail = localStorage.getItem('debug_email');
+    if (storedEmail) {
+      console.log('Found stored debug email:', storedEmail);
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted. Form values:', { email, password: '****' });
     
     // Validate form inputs
-    if (!email.trim()) {
+    if (!email || !email.trim()) {
+      console.log('Email validation failed - empty value');
       setError('Email is required');
       return;
     }
     
-    if (!password.trim()) {
+    if (!password || !password.trim()) {
+      console.log('Password validation failed - empty value');
       setError('Password is required');
       return;
     }
     
     setError('');
     setLoading(true);
+    
+    // Store for debugging
+    const submitData = {
+      email: email.trim(),
+      time: new Date().toISOString(),
+      count: debug.submitCount + 1
+    };
+    
+    setDebug({
+      lastAttempt: submitData,
+      submitCount: debug.submitCount + 1
+    });
+    
+    // Save email to localStorage for debugging persistence
+    localStorage.setItem('debug_email', email.trim());
     
     // Ensure values are properly trimmed
     const trimmedEmail = email.trim();
@@ -37,7 +71,7 @@ const Login = () => {
     // Log the exact data being sent to the API
     console.log('Form submission data:', {
       email: trimmedEmail,
-      password: '********',
+      passwordLength: trimmedPassword.length,
       displayName: trimmedDisplayName,
       isLogin,
       timestamp: new Date().toISOString()
@@ -50,6 +84,11 @@ const Login = () => {
       console.log('Authentication request started at:', new Date().toISOString());
       
       if (isLogin) {
+        // Double check values before sending to signIn
+        if (!trimmedEmail || !trimmedPassword) {
+          throw new Error('Email and password must be provided');
+        }
+        
         await signIn(trimmedEmail, trimmedPassword);
       } else {
         await signUp(trimmedEmail, trimmedPassword, trimmedDisplayName);
@@ -96,10 +135,68 @@ const Login = () => {
       console.error('Authentication error details:', {
         error: err,
         errorMessage,
-        email,
+        emailProvided: !!trimmedEmail, 
+        passwordProvided: !!trimmedPassword,
         isLogin,
         timestamp: new Date().toISOString()
       });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    // Clear error when user starts typing
+    if (error) setError('');
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    // Clear error when user starts typing
+    if (error) setError('');
+  };
+
+  const testDirectLogin = async () => {
+    // Use the test account credentials directly
+    const testEmail = 'test@example.com';
+    const testPassword = 'test123';
+    
+    setLoading(true);
+    setError('');
+    console.log('Testing direct login with test account');
+    
+    try {
+      // First, try fetch API
+      console.log('Attempting fetch API login');
+      const fetchResponse = await fetch('https://damnskippy.onrender.com/api/auth/signin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: testEmail,
+          password: testPassword
+        })
+      });
+      
+      const fetchData = await fetchResponse.json();
+      console.log('Fetch API login result:', {
+        status: fetchResponse.status,
+        success: fetchResponse.ok,
+        hasData: !!fetchData
+      });
+      
+      if (fetchResponse.ok && fetchData) {
+        console.log('Direct test login successful!');
+        setError('Test login successful! The API is working correctly.');
+      } else {
+        console.error('Direct test login failed with fetch API');
+        setError('Test login failed. API error: ' + (fetchData?.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Error in direct test login:', err);
+      setError('Test login network error: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -112,7 +209,7 @@ const Login = () => {
           {isLogin ? 'Login' : 'Sign Up'}
         </h2>
         {error && (
-          <div className="bg-red-500 text-white p-3 rounded mb-4 text-center">
+          <div className={`p-3 rounded mb-4 text-center ${error.includes('successful') ? 'bg-green-500' : 'bg-red-500'} text-white`}>
             {error}
           </div>
         )}
@@ -139,7 +236,7 @@ const Login = () => {
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleEmailChange}
               className="w-full p-2 rounded bg-gray-800 text-white border border-gray-700 focus:border-cyan-500 focus:outline-none"
               required
             />
@@ -152,7 +249,7 @@ const Login = () => {
               id="password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={handlePasswordChange}
               className="w-full p-2 rounded bg-gray-800 text-white border border-gray-700 focus:border-cyan-500 focus:outline-none"
               required
             />
@@ -180,6 +277,24 @@ const Login = () => {
         </div>
         <div className="mt-4 text-center text-gray-400 text-sm">
           <p>Test account: test@example.com / test123</p>
+        </div>
+        
+        {/* Debug information */}
+        {debug.lastAttempt && (
+          <div className="mt-4 text-xs text-gray-500">
+            Last attempt: {debug.lastAttempt.email} at {debug.lastAttempt.time} (#{debug.lastAttempt.count})
+          </div>
+        )}
+        
+        {/* Test API Button */}
+        <div className="mt-4 text-center">
+          <button
+            onClick={testDirectLogin}
+            disabled={loading}
+            className="text-xs text-gray-400 hover:text-cyan-400"
+          >
+            Test API Directly
+          </button>
         </div>
       </div>
     </div>
