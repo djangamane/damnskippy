@@ -5,6 +5,7 @@ import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import ResearchEngine from './components/ResearchEngine';
 import PaymentPage from './components/PaymentPage';
+import SignupSuccess from './components/SignupSuccess';
 import { AuthProvider } from './contexts/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 
@@ -16,6 +17,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/payment" element={<PaymentPage />} />
+          <Route path="/signup-success" element={<SignupSuccess />} />
           <Route
             path="/dashboard"
             element={

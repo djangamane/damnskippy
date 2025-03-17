@@ -262,6 +262,36 @@ apiRouter.get('/user/profile', authenticateToken, (req: AuthRequest, res: Respon
   res.json({ user: req.user });
 });
 
+// Research endpoint
+interface ResearchRequest extends Request {
+  user?: {
+    _id: string;
+    email: string;
+    displayName?: string;
+    isPaidUser?: boolean;
+  };
+  body: {
+    query: string;
+  };
+}
+
+apiRouter.post('/research', authenticateToken, async (req: ResearchRequest, res: Response) => {
+  try {
+    const { query } = req.body;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+
+    console.log('Received research request:', query);
+    const result = await processResearchRequest(query);
+    res.json(result);
+  } catch (error) {
+    console.error('Research endpoint error:', error);
+    res.status(500).json({ error: 'Failed to process research request' });
+  }
+});
+
 // Mount API routes
 app.use('/api', apiRouter);
 
@@ -307,9 +337,16 @@ let openai: OpenAI | null = null;
 if (!process.env.OPENAI_API_KEY) {
   console.warn('Warning: Missing OPENAI_API_KEY environment variable. Research features will be disabled.');
 } else {
-  openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+  console.log('OpenAI API Key found, initializing client...');
+  try {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+    console.log('OpenAI client initialized successfully');
+  } catch (error) {
+    console.error('Error initializing OpenAI client:', error);
+    openai = null;
+  }
 }
 
 interface AutomationWorkflow {
@@ -345,10 +382,6 @@ interface ResearchResult {
     thumbnail: string;
     description: string;
   };
-}
-
-interface ResearchRequest {
-  query: string;
 }
 
 async function fetchN8nWorkflows(query: string): Promise<AutomationWorkflow[]> {
@@ -697,22 +730,6 @@ async function processResearchRequest(query: string): Promise<ResearchResult> {
     };
   }
 }
-
-app.post('/api/research', async (req: Request<{}, {}, ResearchRequest>, res: Response) => {
-  try {
-    const { query } = req.body;
-    console.log('Received research request:', { query });
-    
-    console.log('Starting research process for query:', query);
-    const result = await processResearchRequest(query);
-    
-    console.log('Research completed successfully');
-    res.json(result);
-  } catch (error) {
-    console.error('Research error:', error);
-    res.status(500).json({ error: 'Failed to generate research' });
-  }
-});
 
 // Serve static files from the dist directory with proper MIME types
 const distPath = path.resolve(__dirname, '../../dist');

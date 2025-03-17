@@ -48,101 +48,38 @@ const Login = () => {
     setError('');
     setLoading(true);
     
-    // Store for debugging
-    const submitData = {
-      email: email.trim(),
-      time: new Date().toISOString(),
-      count: debug.submitCount + 1
-    };
-    
-    setDebug({
-      lastAttempt: submitData,
-      submitCount: debug.submitCount + 1
-    });
-    
-    // Save email to localStorage for debugging persistence
-    localStorage.setItem('debug_email', email.trim());
-    
-    // Ensure values are properly trimmed
-    const trimmedEmail = email.trim();
-    const trimmedPassword = password.trim();
-    const trimmedDisplayName = displayName.trim();
-    
-    // Log the exact data being sent to the API
-    console.log('Form submission data:', {
-      email: trimmedEmail,
-      passwordLength: trimmedPassword.length,
-      displayName: trimmedDisplayName,
-      isLogin,
-      timestamp: new Date().toISOString()
-    });
-    
     try {
-      console.log(`Attempting to ${isLogin ? 'sign in' : 'sign up'} with email: ${trimmedEmail}`);
-      
-      // Add a timestamp to help with debugging
-      console.log('Authentication request started at:', new Date().toISOString());
+      // Store attempt info for debugging
+      const attemptInfo = {
+        timestamp: new Date().toISOString(),
+        email,
+        isLogin,
+      };
+      setDebug(prev => ({
+        ...prev,
+        lastAttempt: attemptInfo,
+        submitCount: prev.submitCount + 1
+      }));
       
       if (isLogin) {
-        // Double check values before sending to signIn
-        if (!trimmedEmail || !trimmedPassword) {
-          throw new Error('Email and password must be provided');
-        }
-        
-        await signIn(trimmedEmail, trimmedPassword);
+        await signIn(email, password);
+        navigate('/dashboard');
       } else {
-        await signUp(trimmedEmail, trimmedPassword, trimmedDisplayName);
+        await signUp(email, password, displayName);
+        navigate('/signup-success'); // Redirect to success page after signup
       }
-      
-      console.log('Authentication successful, redirecting to dashboard');
-      navigate('/dashboard');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Authentication error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
       
-      // Extract the error message from the error object
-      let errorMessage = 'Failed to authenticate';
-      
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (err.response) {
-        // Handle Axios error response
-        console.error('Error response:', {
-          status: err.response.status,
-          data: err.response.data,
-          headers: err.response.headers
-        });
-        
-        // Use the server's error message if available
-        errorMessage = err.response.data?.error || err.response.data?.message || errorMessage;
-      }
-      
-      setError(errorMessage);
-      
-      // Add more detailed error message for common issues
-      if (errorMessage.includes('Network Error')) {
-        setError('Network error: Please check your internet connection or try again later.');
-      } else if (errorMessage.includes('401') || errorMessage.toLowerCase().includes('invalid')) {
-        setError('Invalid email or password. Please try again.');
-      } else if (errorMessage.includes('400') || errorMessage.toLowerCase().includes('required')) {
-        setError('Email and password are required. Please fill in all fields.');
-      } else if (errorMessage.includes('404')) {
-        setError('Authentication service not available. Please try again later.');
-      } else if (errorMessage.includes('500')) {
-        setError('Server error: Please try again later or contact support.');
-      }
-      
-      // Log the error to the console for debugging
-      console.error('Authentication error details:', {
-        error: err,
-        errorMessage,
-        emailProvided: !!trimmedEmail, 
-        passwordProvided: !!trimmedPassword,
-        isLogin,
-        timestamp: new Date().toISOString()
-      });
-    } finally {
-      setLoading(false);
+      // Store error info for debugging
+      setDebug(prev => ({
+        ...prev,
+        lastError: err
+      }));
     }
+    
+    setLoading(false);
   };
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
