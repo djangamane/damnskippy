@@ -64,11 +64,28 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Validate inputs
+      if (!email || !password) {
+        const errorMessage = 'Email and password are required';
+        console.error(errorMessage);
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      }
+
       setError(null);
       console.log('Attempting to sign in with email:', email);
       
       // Add a timestamp to help with debugging
-      console.log('Sign-in request started at:', new Date().toISOString());
+      const requestTimestamp = new Date().toISOString();
+      console.log('Sign-in request started at:', requestTimestamp);
+      
+      // Log the request payload for debugging
+      console.log('Sign-in request payload:', {
+        email,
+        password: password ? '********' : 'MISSING', // Don't log the actual password
+        apiUrl: `${config.apiUrl}/api/auth/signin`,
+        timestamp: requestTimestamp
+      });
       
       const response = await axios.post(`${config.apiUrl}/api/auth/signin`, {
         email,
@@ -116,11 +133,18 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.error('Error response status:', err.response.status);
         console.error('Error response data:', err.response.data);
         console.error('Error response headers:', err.response.headers);
+        
+        // Set a more specific error message based on the response
+        const serverErrorMessage = err.response.data?.error || err.response.data?.message;
+        if (serverErrorMessage) {
+          setError(serverErrorMessage);
+          throw new Error(serverErrorMessage);
+        }
       } else if (err.request) {
         console.error('Error request:', err.request);
       }
       
-      const errorMessage = err.response?.data?.error || err.message || 'Invalid email or password';
+      const errorMessage = err.message || 'Invalid email or password';
       setError(errorMessage);
       throw new Error(errorMessage);
     }

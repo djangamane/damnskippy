@@ -282,8 +282,8 @@ if (!process.env.OPENAI_API_KEY) {
   console.warn('Warning: Missing OPENAI_API_KEY environment variable. Research features will be disabled.');
 } else {
   openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-  });
+  apiKey: process.env.OPENAI_API_KEY
+});
 }
 
 interface AutomationWorkflow {
@@ -823,7 +823,7 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Environment:', process.env.NODE_ENV || 'development');
-});
+}); 
 
 // Export the app for testing
 export default app; 

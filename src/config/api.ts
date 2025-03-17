@@ -25,13 +25,24 @@ axios.defaults.withCredentials = true; // Include credentials in cross-origin re
 // Add request interceptor for debugging
 axios.interceptors.request.use(
   config => {
+    // Ensure Content-Type is set for POST requests
+    if (config.method?.toLowerCase() === 'post' && !config.headers['Content-Type']) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+    
+    // Log request details
     console.log('API Request:', {
       url: config.url,
       method: config.method,
       headers: config.headers,
-      data: config.data,
+      data: config.data ? (
+        typeof config.data === 'object' ? 
+          { ...config.data, password: config.data.password ? '********' : undefined } : 
+          'Data present but not an object'
+      ) : 'No data',
       timestamp: new Date().toISOString()
     });
+    
     return config;
   },
   error => {
@@ -47,19 +58,51 @@ axios.interceptors.response.use(
       url: response.config.url,
       method: response.config.method,
       status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
       data: response.data,
       timestamp: new Date().toISOString()
     });
     return response;
   },
   error => {
-    console.error('API Error:', {
+    // Create a detailed error log with proper typing
+    const errorDetails: {
+      url?: string;
+      method?: string;
+      timestamp: string;
+      status?: number;
+      statusText?: string;
+      data?: any;
+      headers?: any;
+      request?: string;
+      requestData?: any;
+      message?: string;
+    } = {
       url: error.config?.url,
       method: error.config?.method,
-      status: error.response?.status,
-      data: error.response?.data,
       timestamp: new Date().toISOString()
-    });
+    };
+    
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      errorDetails.status = error.response.status;
+      errorDetails.statusText = error.response.statusText;
+      errorDetails.data = error.response.data;
+      errorDetails.headers = error.response.headers;
+      console.error('API Error (Server Response):', errorDetails);
+    } else if (error.request) {
+      // The request was made but no response was received
+      errorDetails.request = 'Request made but no response received';
+      errorDetails.requestData = error.config?.data;
+      console.error('API Error (No Response):', errorDetails);
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      errorDetails.message = error.message;
+      console.error('API Error (Request Setup):', errorDetails);
+    }
+    
     return Promise.reject(error);
   }
 );

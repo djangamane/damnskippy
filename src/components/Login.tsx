@@ -14,8 +14,29 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form inputs
+    if (!email.trim()) {
+      setError('Email is required');
+      return;
+    }
+    
+    if (!password.trim()) {
+      setError('Password is required');
+      return;
+    }
+    
     setError('');
     setLoading(true);
+    
+    // Log the exact data being sent to the API
+    console.log('Form submission data:', {
+      email: email.trim(),
+      password: password.trim(),
+      displayName: displayName.trim(),
+      isLogin,
+      timestamp: new Date().toISOString()
+    });
     
     try {
       console.log(`Attempting to ${isLogin ? 'sign in' : 'sign up'} with email: ${email}`);
@@ -24,23 +45,42 @@ const Login = () => {
       console.log('Authentication request started at:', new Date().toISOString());
       
       if (isLogin) {
-        await signIn(email, password);
+        await signIn(email.trim(), password.trim());
       } else {
-        await signUp(email, password, displayName);
+        await signUp(email.trim(), password.trim(), displayName.trim());
       }
       
       console.log('Authentication successful, redirecting to dashboard');
       navigate('/dashboard');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Authentication error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to authenticate';
+      
+      // Extract the error message from the error object
+      let errorMessage = 'Failed to authenticate';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (err.response) {
+        // Handle Axios error response
+        console.error('Error response:', {
+          status: err.response.status,
+          data: err.response.data,
+          headers: err.response.headers
+        });
+        
+        // Use the server's error message if available
+        errorMessage = err.response.data?.error || err.response.data?.message || errorMessage;
+      }
+      
       setError(errorMessage);
       
       // Add more detailed error message for common issues
       if (errorMessage.includes('Network Error')) {
         setError('Network error: Please check your internet connection or try again later.');
-      } else if (errorMessage.includes('401')) {
+      } else if (errorMessage.includes('401') || errorMessage.toLowerCase().includes('invalid')) {
         setError('Invalid email or password. Please try again.');
+      } else if (errorMessage.includes('400') || errorMessage.toLowerCase().includes('required')) {
+        setError('Email and password are required. Please fill in all fields.');
       } else if (errorMessage.includes('404')) {
         setError('Authentication service not available. Please try again later.');
       } else if (errorMessage.includes('500')) {
@@ -50,6 +90,7 @@ const Login = () => {
       // Log the error to the console for debugging
       console.error('Authentication error details:', {
         error: err,
+        errorMessage,
         email,
         isLogin,
         timestamp: new Date().toISOString()
@@ -131,6 +172,9 @@ const Login = () => {
           >
             {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </button>
+        </div>
+        <div className="mt-4 text-center text-gray-400 text-sm">
+          <p>Test account: test@example.com / test123</p>
         </div>
       </div>
     </div>
