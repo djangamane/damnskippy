@@ -87,15 +87,30 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         timestamp: requestTimestamp
       });
       
-      const response = await axios.post(`${config.apiUrl}/api/auth/signin`, {
-        email,
-        password
-      });
+      // Explicitly create request data to ensure proper format
+      const requestData = {
+        email: email.trim(),
+        password: password.trim()
+      };
+      
+      // Ensure headers are explicitly set
+      const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      };
+      
+      console.log('Using explicit headers and request data format');
+      
+      const response = await axios.post(
+        `${config.apiUrl}/api/auth/signin`, 
+        requestData,
+        { headers }
+      );
       
       console.log('Sign-in response received at:', new Date().toISOString());
       console.log('Sign-in response status:', response.status);
       console.log('Sign-in response headers:', response.headers);
-      console.log('Sign-in response data:', response.data);
+      console.log('Sign-in response has data:', !!response.data);
       
       const userData = response.data.data;
       const authToken = response.data.token;

@@ -29,25 +29,30 @@ const Login = () => {
     setError('');
     setLoading(true);
     
+    // Ensure values are properly trimmed
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    const trimmedDisplayName = displayName.trim();
+    
     // Log the exact data being sent to the API
     console.log('Form submission data:', {
-      email: email.trim(),
-      password: password.trim(),
-      displayName: displayName.trim(),
+      email: trimmedEmail,
+      password: '********',
+      displayName: trimmedDisplayName,
       isLogin,
       timestamp: new Date().toISOString()
     });
     
     try {
-      console.log(`Attempting to ${isLogin ? 'sign in' : 'sign up'} with email: ${email}`);
+      console.log(`Attempting to ${isLogin ? 'sign in' : 'sign up'} with email: ${trimmedEmail}`);
       
       // Add a timestamp to help with debugging
       console.log('Authentication request started at:', new Date().toISOString());
       
       if (isLogin) {
-        await signIn(email.trim(), password.trim());
+        await signIn(trimmedEmail, trimmedPassword);
       } else {
-        await signUp(email.trim(), password.trim(), displayName.trim());
+        await signUp(trimmedEmail, trimmedPassword, trimmedDisplayName);
       }
       
       console.log('Authentication successful, redirecting to dashboard');

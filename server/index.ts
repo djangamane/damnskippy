@@ -270,6 +270,32 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'healthy' });
 });
 
+// Add diagnostic endpoint (only in development)
+app.get('/api/diagnostic', (req: Request, res: Response) => {
+  // Only provide detailed info in development
+  const isDev = process.env.NODE_ENV !== 'production';
+  
+  res.status(200).json({
+    status: 'ok',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+    serverInfo: isDev ? {
+      // Safe info to expose in development
+      nodeVersion: process.version,
+      platform: process.platform,
+      mongoConnected: !!db,
+      openaiConfigured: !!process.env.OPENAI_API_KEY,
+      cors: {
+        enabled: true,
+        allowCredentials: true
+      }
+    } : {
+      // Limited info for production
+      serviceAvailable: true
+    }
+  });
+});
+
 // Handle favicon.ico requests
 app.get('/favicon.ico', (req: Request, res: Response) => {
   // Return a 204 No Content if favicon doesn't exist

@@ -20,14 +20,41 @@ import axios from 'axios';
 axios.defaults.baseURL = config.apiUrl;
 axios.defaults.timeout = config.timeout;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
+axios.defaults.headers.common['Accept'] = 'application/json';
 axios.defaults.withCredentials = true; // Include credentials in cross-origin requests
 
-// Add request interceptor for debugging
+// Add request interceptor for debugging - focusing on the actual data being sent
 axios.interceptors.request.use(
   config => {
     // Ensure Content-Type is set for POST requests
-    if (config.method?.toLowerCase() === 'post' && !config.headers['Content-Type']) {
+    if (config.method?.toLowerCase() === 'post') {
       config.headers['Content-Type'] = 'application/json';
+    }
+    
+    // Sanitize the data for logging (remove passwords)
+    let sanitizedData = null;
+    if (config.data) {
+      if (typeof config.data === 'string') {
+        try {
+          // Try to parse it if it's a JSON string
+          const parsed = JSON.parse(config.data);
+          sanitizedData = { ...parsed };
+          if (sanitizedData.password) sanitizedData.password = '********';
+        } catch (e) {
+          sanitizedData = 'String data present (could not parse)';
+        }
+      } else if (typeof config.data === 'object') {
+        sanitizedData = { ...config.data };
+        if (sanitizedData.password) sanitizedData.password = '********';
+      } else {
+        sanitizedData = `Data present (type: ${typeof config.data})`;
+      }
+    }
+    
+    // Ensure data is always properly stringified for POST requests
+    if (config.method?.toLowerCase() === 'post' && config.data && typeof config.data === 'object') {
+      config.data = JSON.stringify(config.data);
+      console.log('Stringified request data:', config.data ? 'Data present' : 'No data');
     }
     
     // Log request details
@@ -35,11 +62,7 @@ axios.interceptors.request.use(
       url: config.url,
       method: config.method,
       headers: config.headers,
-      data: config.data ? (
-        typeof config.data === 'object' ? 
-          { ...config.data, password: config.data.password ? '********' : undefined } : 
-          'Data present but not an object'
-      ) : 'No data',
+      data: sanitizedData,
       timestamp: new Date().toISOString()
     });
     
@@ -60,7 +83,7 @@ axios.interceptors.response.use(
       status: response.status,
       statusText: response.statusText,
       headers: response.headers,
-      data: response.data,
+      hasData: !!response.data,
       timestamp: new Date().toISOString()
     });
     return response;
