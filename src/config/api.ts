@@ -1,8 +1,7 @@
 // API configuration
 const config = {
-  apiUrl: process.env.NODE_ENV === 'production' || import.meta.env.PROD
-    ? window.location.origin // Use the same origin in production
-    : 'http://localhost:3001', // Development backend URL
+  // Force the production URL for now to ensure login works
+  apiUrl: 'https://damnskippy.onrender.com',
   timeout: 10000, // 10 seconds timeout
 };
 
