@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, existsSync } from 'fs';
+import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -6,10 +6,37 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = join(__dirname, '..');
 
+// Helper function to copy directory recursively
+function copyDir(src, dest) {
+  if (!existsSync(dest)) {
+    mkdirSync(dest, { recursive: true });
+  }
+
+  const entries = readdirSync(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = join(src, entry.name);
+    const destPath = join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDir(srcPath, destPath);
+    } else {
+      copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
 // Ensure dist/server directory exists
 const serverDist = join(rootDir, 'dist', 'server');
 if (!existsSync(serverDist)) {
   mkdirSync(serverDist, { recursive: true });
+}
+
+// Copy server files
+const serverSrc = join(rootDir, 'server');
+if (existsSync(serverSrc)) {
+  copyDir(serverSrc, serverDist);
+  console.log('✓ Server files copied');
 }
 
 // Copy environment file if it exists
@@ -22,7 +49,7 @@ if (existsSync(envFile)) {
   console.log('⚠ No .env file found');
 }
 
-// Copy package files
+// Copy package files to dist
 const packageFiles = ['package.json', 'package-lock.json'];
 packageFiles.forEach(file => {
   const src = join(rootDir, file);
@@ -32,5 +59,15 @@ packageFiles.forEach(file => {
     console.log(`✓ ${file} copied`);
   }
 });
+
+// Install production dependencies in dist
+console.log('Installing production dependencies in dist...');
+const { execSync } = await import('child_process');
+try {
+  execSync('cd dist && npm ci --production', { stdio: 'inherit' });
+  console.log('✓ Production dependencies installed');
+} catch (error) {
+  console.error('⚠ Error installing production dependencies:', error);
+}
 
 console.log('File copying completed successfully'); 
