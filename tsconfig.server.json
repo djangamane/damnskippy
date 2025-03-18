@@ -11,10 +11,13 @@
     "rootDir": "./server",
     "allowJs": true,
     "noEmit": false,
-    "noEmitOnError": false
+    "noEmitOnError": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["server/**/*"],
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules", "dist"],
   "ts-node": {
     "esm": true,
     "experimentalSpecifiers": true
