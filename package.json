@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:server": "nodemon --watch server --exec \"npm run build:server && node dist/server/index.js\"",
     "dev:full": "concurrently \"npm run dev\" \"npm run dev:server\"",
-    "start": "NODE_ENV=production node server/index.js",
+    "start": "cd dist && NODE_ENV=production node server/index.js",
     "build": "tsc && vite build",
     "build:server": "tsc -p tsconfig.server.json --skipLibCheck",
     "build:full": "npm run build && npm run build:server && npm run copy-files",

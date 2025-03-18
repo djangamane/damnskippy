@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'fs';
+import { copyFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -28,9 +28,7 @@ function copyDir(src, dest) {
 
 // Ensure dist/server directory exists
 const serverDist = join(rootDir, 'dist', 'server');
-if (!existsSync(serverDist)) {
-  mkdirSync(serverDist, { recursive: true });
-}
+mkdirSync(serverDist, { recursive: true });
 
 // Copy server files
 const serverSrc = join(rootDir, 'server');
@@ -41,9 +39,8 @@ if (existsSync(serverSrc)) {
 
 // Copy environment file if it exists
 const envFile = join(rootDir, '.env');
-const envDistFile = join(serverDist, '.env');
 if (existsSync(envFile)) {
-  copyFileSync(envFile, envDistFile);
+  copyFileSync(envFile, join(serverDist, '.env'));
   console.log('✓ Environment file copied');
 } else {
   console.log('⚠ No .env file found');
@@ -59,15 +56,5 @@ packageFiles.forEach(file => {
     console.log(`✓ ${file} copied`);
   }
 });
-
-// Install production dependencies in dist
-console.log('Installing production dependencies in dist...');
-const { execSync } = await import('child_process');
-try {
-  execSync('cd dist && npm ci --production', { stdio: 'inherit' });
-  console.log('✓ Production dependencies installed');
-} catch (error) {
-  console.error('⚠ Error installing production dependencies:', error);
-}
 
 console.log('File copying completed successfully'); 
