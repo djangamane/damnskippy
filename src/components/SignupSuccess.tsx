@@ -29,12 +29,6 @@ const SignupSuccess = () => {
             >
               Go to Dashboard
             </button>
-            <button
-              onClick={() => navigate('/profile')}
-              className="w-full bg-transparent hover:bg-cyan-500/10 text-cyan-400 font-semibold py-2 px-4 rounded-lg border border-cyan-500/30 transition-colors duration-200"
-            >
-              Complete Your Profile
-            </button>
           </div>
         </div>
       </div>

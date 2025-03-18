@@ -58,17 +58,18 @@ app.use(cors({
         'https://earnest-chimera-9ffaeb.netlify.app', 
         'https://damnskippy.onrender.com', 
         'https://skipthegames4ai.com', 
-        'https://www.skipthegames4ai.com', 
+        'https://www.skipthegames4ai.com',
         'https://damnskippy.onrender.com', 
         'https://skipthegames4ai.netlify.app',
+        'https://abitofadvicellc.com',
+        'https://www.abitofadvicellc.com',
         'http://localhost:3000',
         'http://localhost:5173'
       ]
-    : '*', // Allow all origins in development
+    : 'http://localhost:5173',
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Authorization'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // Add CORS preflight handler
