@@ -109,8 +109,9 @@ interface AuthRequest extends Request {
   };
 }
 
-const authenticateToken: RequestHandler = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization'];
+const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as AuthRequest;
+  const authHeader = authReq.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN format
   
   if (!token) {
@@ -126,7 +127,7 @@ const authenticateToken: RequestHandler = (req: AuthRequest, res: Response, next
       isPaidUser?: boolean;
     };
     
-    req.user = decoded;
+    authReq.user = decoded;
     next();
   } catch (err) {
     res.status(403).json({ error: 'Invalid token.' });
@@ -259,8 +260,9 @@ apiRouter.post('/auth/signin', signInHandler);
 apiRouter.post('/auth/signout', signOutHandler);
 
 // Protected route example
-apiRouter.get('/user/profile', authenticateToken, (req: AuthRequest, res: Response) => {
-  res.json({ user: req.user });
+apiRouter.get('/user/profile', authenticateToken, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  res.json({ user: authReq.user });
 });
 
 // Research endpoint
@@ -276,9 +278,10 @@ interface ResearchRequest extends Request {
   };
 }
 
-apiRouter.post('/research', authenticateToken, async (req: ResearchRequest, res: Response) => {
+apiRouter.post('/research', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const { query } = req.body;
+    const researchReq = req as ResearchRequest;
+    const { query } = researchReq.body;
     
     if (!query) {
       return res.status(400).json({ error: 'Query is required' });
