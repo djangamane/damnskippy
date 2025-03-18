@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, RequestHandler } from 'express';
 import OpenAI from 'openai';
 
 const router = Router();
@@ -9,6 +9,10 @@ const openai = new OpenAI({
 });
 
 console.log('OpenAI client initialized successfully');
+
+interface ResearchError extends Error {
+  status?: number;
+}
 
 async function performResearch(query: string): Promise<string> {
   try {
@@ -39,23 +43,26 @@ async function performResearch(query: string): Promise<string> {
 
     console.log('OpenAI response received successfully');
     return completion.choices[0].message.content || 'No results found';
-  } catch (error) {
+  } catch (error: any) {
     console.error('OpenAI API error:', error);
-    throw new Error(`Failed to process request with OpenAI API: ${error.message}`);
+    const researchError: ResearchError = new Error(`Failed to process request with OpenAI API: ${error.message}`);
+    researchError.status = 500;
+    throw researchError;
   }
 }
 
-router.post('/', async (req, res) => {
+const handleResearch: RequestHandler = async (req, res, next) => {
   try {
     console.log(`${new Date().toISOString()} - POST /api/research`);
     const { query } = req.body;
 
     if (!query) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Missing query parameter',
         message: 'Please provide a search query'
       });
+      return;
     }
 
     console.log('Starting research process for query:', query);
@@ -65,14 +72,17 @@ router.post('/', async (req, res) => {
       success: true,
       result: result
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Research processing error:', error);
-    res.status(500).json({
+    const status = (error as ResearchError).status || 500;
+    res.status(status).json({
       success: false,
       error: 'Research processing failed',
       message: error.message
     });
   }
-});
+};
+
+router.post('/', handleResearch);
 
 export const researchRouter = router; 
