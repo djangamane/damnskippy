@@ -278,13 +278,14 @@ interface ResearchRequest extends Request {
   };
 }
 
-apiRouter.post('/research', authenticateToken, async (req: Request, res: Response) => {
+apiRouter.post('/research', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
     const researchReq = req as ResearchRequest;
     const { query } = researchReq.body;
     
     if (!query) {
-      return res.status(400).json({ error: 'Query is required' });
+      res.status(400).json({ error: 'Query is required' });
+      return;
     }
 
     console.log('Received research request:', query);
@@ -343,10 +344,14 @@ if (!process.env.OPENAI_API_KEY) {
 } else {
   console.log('OpenAI API Key found, initializing client...');
   try {
-    // Remove 'Bearer ' prefix if it exists in the API key
-    const apiKey = process.env.OPENAI_API_KEY.replace(/^Bearer\s+/i, '');
+    // Remove 'Bearer ' prefix if it exists in the API key and any whitespace
+    const apiKey = process.env.OPENAI_API_KEY.replace(/^Bearer\s+/i, '').trim();
+    console.log('API Key length:', apiKey.length);
+    console.log('API Key format check - starts with sk-:', apiKey.startsWith('sk-'));
+    
     openai = new OpenAI({
-      apiKey: apiKey.trim()
+      apiKey,
+      baseURL: 'https://api.openai.com/v1'  // Explicitly set the base URL
     });
     console.log('OpenAI client initialized successfully');
   } catch (error) {
