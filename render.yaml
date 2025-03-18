@@ -2,8 +2,12 @@ services:
   - type: web
     name: skipthegames4ai
     env: node
-    buildCommand: npm install && npm run build:full
-    startCommand: npm start
+    buildCommand: |
+      npm ci
+      npm run build:full
+      mkdir -p dist/server
+      cp -r server/* dist/server/
+    startCommand: NODE_ENV=production node dist/server/index.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -16,4 +20,6 @@ services:
       - key: OPENAI_API_KEY
         sync: false
     healthCheckPath: /api/health
-    autoDeploy: true 
+    autoDeploy: true
+    domains:
+      - skipthegames4ai.onrender.com 

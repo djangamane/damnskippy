@@ -4,7 +4,7 @@ import Logo from './Logo';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import config from '../config/api';
-import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 interface ResearchResult {
   success: boolean;
@@ -167,6 +167,22 @@ export default function ResearchEngine() {
     }
   };
 
+  // Function to safely render markdown content
+  const renderContent = (content: string) => {
+    // Convert line breaks to <br> tags and preserve formatting
+    const formattedContent = content
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/#{3} (.*?)\n/g, '<h3>$1</h3>')
+      .replace(/#{2} (.*?)\n/g, '<h2>$1</h2>')
+      .replace(/#{1} (.*?)\n/g, '<h1>$1</h1>');
+
+    const sanitizedContent = DOMPurify.sanitize(formattedContent);
+    return { __html: sanitizedContent };
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
       <div className="max-w-4xl mx-auto p-6">
@@ -240,7 +256,7 @@ export default function ResearchEngine() {
             {/* Research Results Section */}
             <div className="bg-white p-6 rounded-lg shadow-md border border-indigo-100">
               <h2 className="text-2xl font-semibold mb-4 text-indigo-900">Research Results</h2>
-              <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: marked(result.result) }} />
+              <div className="prose max-w-none" dangerouslySetInnerHTML={renderContent(result.result)} />
             </div>
 
             {/* Premium Service Section */}

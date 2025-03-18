@@ -1,19 +1,10 @@
 // API configuration
 const config = {
-  apiUrl: process.env.NODE_ENV === 'production' || import.meta.env.PROD
-    ? window.location.origin // Use the same origin in production
-    : 'http://localhost:3001', // Development backend URL
-  timeout: 10000, // 10 seconds timeout
+  // In production, API calls will be made to the same origin
+  // In development, they will be proxied to the development server
+  apiUrl: '',
+  timeout: 30000, // 30 seconds timeout
 };
-
-// Log the current environment and API URL for debugging
-console.log('API Configuration:', {
-  NODE_ENV: process.env.NODE_ENV,
-  PROD: import.meta.env.PROD,
-  apiUrl: config.apiUrl,
-  origin: window.location.origin,
-  timestamp: new Date().toISOString()
-});
 
 // Configure axios defaults
 import axios from 'axios';
@@ -21,29 +12,29 @@ axios.defaults.baseURL = config.apiUrl;
 axios.defaults.timeout = config.timeout;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 axios.defaults.headers.common['Accept'] = 'application/json';
-axios.defaults.withCredentials = true; // Include credentials in cross-origin requests
+axios.defaults.withCredentials = true;
 
 // Add request interceptor for debugging
 axios.interceptors.request.use(
   config => {
-    // Get the auth token from localStorage
     const token = localStorage.getItem('token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // Ensure Content-Type is set for POST requests
     if (config.method?.toLowerCase() === 'post') {
       config.headers['Content-Type'] = 'application/json';
     }
     
-    // Log request details
-    console.log('API Request:', {
-      url: config.url,
-      method: config.method,
-      headers: config.headers,
-      timestamp: new Date().toISOString()
-    });
+    // Log request details in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('API Request:', {
+        url: config.url,
+        method: config.method,
+        headers: config.headers,
+        timestamp: new Date().toISOString()
+      });
+    }
     
     return config;
   },
@@ -56,55 +47,31 @@ axios.interceptors.request.use(
 // Add response interceptor for better error handling
 axios.interceptors.response.use(
   response => {
-    console.log('API Response:', {
-      url: response.config.url,
-      method: response.config.method,
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-      hasData: !!response.data,
-      timestamp: new Date().toISOString()
-    });
+    // Log response details in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('API Response:', {
+        url: response.config.url,
+        method: response.config.method,
+        status: response.status,
+        statusText: response.statusText,
+        hasData: !!response.data,
+        timestamp: new Date().toISOString()
+      });
+    }
     return response;
   },
   error => {
-    // Create a detailed error log with proper typing
-    const errorDetails: {
-      url?: string;
-      method?: string;
-      timestamp: string;
-      status?: number;
-      statusText?: string;
-      data?: any;
-      headers?: any;
-      request?: string;
-      requestData?: any;
-      message?: string;
-    } = {
+    const errorDetails = {
       url: error.config?.url,
       method: error.config?.method,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
     };
     
-    if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      errorDetails.status = error.response.status;
-      errorDetails.statusText = error.response.statusText;
-      errorDetails.data = error.response.data;
-      errorDetails.headers = error.response.headers;
-      console.error('API Error (Server Response):', errorDetails);
-    } else if (error.request) {
-      // The request was made but no response was received
-      errorDetails.request = 'Request made but no response received';
-      errorDetails.requestData = error.config?.data;
-      console.error('API Error (No Response):', errorDetails);
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      errorDetails.message = error.message;
-      console.error('API Error (Request Setup):', errorDetails);
-    }
-    
+    console.error('API Error:', errorDetails);
     return Promise.reject(error);
   }
 );
