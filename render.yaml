@@ -2,7 +2,7 @@ services:
   - type: web
     name: skipthegames4ai
     env: node
-    buildCommand: npm install && npm run build:full && npm run render-postbuild
+    buildCommand: npm install && npm run build:full
     startCommand: npm start
     envVars:
       - key: NODE_ENV

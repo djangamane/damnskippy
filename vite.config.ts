@@ -8,13 +8,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    assetsDir: 'assets',
     sourcemap: false,
-    manifest: true,
     rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'index.html'),
-      },
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
@@ -28,10 +23,8 @@ export default defineConfig({
         target: process.env.VITE_API_URL || 'http://localhost:3001',
         changeOrigin: true,
         secure: false,
-        ws: true,
       },
     },
-    cors: true
   },
   // Copy public assets to dist
   publicDir: 'public',

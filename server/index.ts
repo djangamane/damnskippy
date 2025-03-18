@@ -8,7 +8,7 @@ import jwt from 'jsonwebtoken';
 import { MongoClient, ObjectId } from 'mongodb';
 import fs from 'fs';
 import { researchRouter } from './research.js';
-import { apiRouter } from './routes.js';
+import { authRouter } from './auth.js';
 import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
