@@ -4,9 +4,13 @@ import Logo from './Logo';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import config from '../config/api';
+import { marked } from 'marked';
 
 interface ResearchResult {
-  content: string;
+  success: boolean;
+  result: string;
+  error?: string;
+  message?: string;
 }
 
 // Add Calendly popup functionality
@@ -18,10 +22,10 @@ declare global {
 
 export default function ResearchEngine() {
   const [query, setQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<ResearchResult | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { signOut } = useAuth();
+  const { token } = useAuth();
   const navigate = useNavigate();
 
   // Add Calendly script
@@ -133,85 +137,33 @@ export default function ResearchEngine() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) {
-      setError('Please enter a research query');
-      return;
-    }
-
-    setIsLoading(true);
+    setLoading(true);
     setError(null);
     setResult(null);
-    
+
     try {
-      console.log('Sending research request for:', query);
-      
-      const response = await axios.post(`${config.apiUrl}/api/research`, { query }, {
-        timeout: 120000,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('Raw API Response:', response);
-
-      // Extract content from response with fallbacks
-      let content: string | null = null;
-
-      if (response.data) {
-        // Handle n8n workflow format
-        if (response.data.data?.content) {
-          content = response.data.data.content;
-        } else if (response.data.content) {
-          content = response.data.content;
-        } else if (typeof response.data === 'string') {
-          content = response.data;
-        } else if (response.data.choices?.[0]?.message?.content) {
-          content = response.data.choices[0].message.content;
-        } else {
-          // If none of the above, try to extract meaningful content
-          const jsonString = JSON.stringify(response.data, null, 2);
-          if (jsonString.includes('"content":')) {
-            const match = jsonString.match(/"content":\s*"([^"]+)"/);
-            content = match ? match[1] : jsonString;
-          } else {
-            content = jsonString;
+      const response = await axios.post('/api/research', 
+        { query },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           }
         }
+      );
+
+      if (response.data.success) {
+        setResult(response.data);
+      } else {
+        setError(response.data.message || 'Failed to perform research');
       }
-
-      console.log('Extracted content:', content);
-
-      if (!content) {
-        throw new Error('No content found in response');
-      }
-
-      // Clean up any escaped characters
-      content = content.replace(/\\n/g, '\n').replace(/\\"/g, '"');
-
-      // Set the result and clear any errors
-      setResult({ content });
-      setError(null);
-      
     } catch (err: any) {
       console.error('Research error:', err);
-      console.error('Full error details:', {
-        message: err.message,
-        code: err.code,
-        response: err.response,
-        stack: err.stack
-      });
-      
-      setError(err.message || 'An error occurred while processing your request');
-      setResult(null);
+      setError(err.response?.data?.message || err.message || 'Failed to perform research');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -226,7 +178,7 @@ export default function ResearchEngine() {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={handleSignOut}
+              onClick={() => navigate('/')}
               className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
             >
               Sign Out
@@ -261,10 +213,10 @@ export default function ResearchEngine() {
             />
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={loading}
               className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 shadow-sm"
             >
-              {isLoading ? 'Researching...' : 'Research'}
+              {loading ? 'Researching...' : 'Research'}
             </button>
           </div>
         </form>
@@ -275,7 +227,7 @@ export default function ResearchEngine() {
           </div>
         )}
 
-        {isLoading && (
+        {loading && (
           <div className="flex flex-col items-center justify-center my-12 space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
             <p className="text-lg text-indigo-700 font-medium">Performing deep research on your request...</p>
@@ -283,16 +235,12 @@ export default function ResearchEngine() {
           </div>
         )}
 
-        {result?.content && (
+        {result && (
           <div className="space-y-8">
             {/* Research Results Section */}
             <div className="bg-white p-6 rounded-lg shadow-md border border-indigo-100">
               <h2 className="text-2xl font-semibold mb-4 text-indigo-900">Research Results</h2>
-              <div className="prose max-w-none">
-                <pre className="whitespace-pre-wrap text-gray-700 font-sans p-4 bg-gray-50 rounded-lg">
-                  {result.content}
-                </pre>
-              </div>
+              <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: marked(result.result) }} />
             </div>
 
             {/* Premium Service Section */}
