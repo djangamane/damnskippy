@@ -26,6 +26,12 @@ axios.defaults.withCredentials = true; // Include credentials in cross-origin re
 // Add request interceptor for debugging - focusing on the actual data being sent
 axios.interceptors.request.use(
   config => {
+    // Get the auth token from localStorage
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+
     // Ensure Content-Type is set for POST requests
     if (config.method?.toLowerCase() === 'post') {
       config.headers['Content-Type'] = 'application/json';
