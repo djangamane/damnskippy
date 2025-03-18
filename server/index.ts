@@ -340,8 +340,10 @@ if (!process.env.OPENAI_API_KEY) {
 } else {
   console.log('OpenAI API Key found, initializing client...');
   try {
+    // Remove 'Bearer ' prefix if it exists in the API key
+    const apiKey = process.env.OPENAI_API_KEY.replace(/^Bearer\s+/i, '');
     openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
+      apiKey: apiKey.trim()
     });
     console.log('OpenAI client initialized successfully');
   } catch (error) {
@@ -636,9 +638,11 @@ async function processResearchRequest(query: string): Promise<ResearchResult> {
     console.log('Processing research request for:', query);
     
     if (!openai) {
+      console.error('OpenAI client not initialized. API Key status:', process.env.OPENAI_API_KEY ? 'Present' : 'Missing');
       throw new Error('OpenAI client not initialized');
     }
 
+    console.log('Making OpenAI API call...');
     // 1. Use OpenAI to analyze the query and generate research
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
@@ -654,8 +658,17 @@ async function processResearchRequest(query: string): Promise<ResearchResult> {
       ],
       temperature: 0.7,
       max_tokens: 2000
+    }).catch(error => {
+      console.error('OpenAI API call failed:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        headers: error.response?.headers
+      });
+      throw error;
     });
 
+    console.log('OpenAI API call successful');
     const researchContent = completion.choices[0]?.message?.content || 'No research results available.';
     
     // 2. Fetch automation workflows
