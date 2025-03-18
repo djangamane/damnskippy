@@ -21,7 +21,12 @@ function copyDir(src, dest) {
     if (entry.isDirectory()) {
       copyDir(srcPath, destPath);
     } else {
-      copyFileSync(srcPath, destPath);
+      try {
+        copyFileSync(srcPath, destPath);
+        console.log(`✓ Copied ${entry.name}`);
+      } catch (error) {
+        console.error(`⚠ Error copying ${entry.name}:`, error.message);
+      }
     }
   }
 }
@@ -33,6 +38,7 @@ mkdirSync(serverDist, { recursive: true });
 // Copy server files
 const serverSrc = join(rootDir, 'server');
 if (existsSync(serverSrc)) {
+  console.log('Copying server files...');
   copyDir(serverSrc, serverDist);
   console.log('✓ Server files copied');
 }
@@ -40,8 +46,12 @@ if (existsSync(serverSrc)) {
 // Copy environment file if it exists
 const envFile = join(rootDir, '.env');
 if (existsSync(envFile)) {
-  copyFileSync(envFile, join(serverDist, '.env'));
-  console.log('✓ Environment file copied');
+  try {
+    copyFileSync(envFile, join(serverDist, '.env'));
+    console.log('✓ Environment file copied');
+  } catch (error) {
+    console.error('⚠ Error copying environment file:', error.message);
+  }
 } else {
   console.log('⚠ No .env file found');
 }
@@ -52,9 +62,23 @@ packageFiles.forEach(file => {
   const src = join(rootDir, file);
   const dest = join(rootDir, 'dist', file);
   if (existsSync(src)) {
-    copyFileSync(src, dest);
-    console.log(`✓ ${file} copied`);
+    try {
+      copyFileSync(src, dest);
+      console.log(`✓ ${file} copied`);
+    } catch (error) {
+      console.error(`⚠ Error copying ${file}:`, error.message);
+    }
   }
 });
+
+// Copy TypeScript type definitions
+const typesDir = join(rootDir, 'node_modules', '@types');
+const distTypesDir = join(rootDir, 'dist', 'node_modules', '@types');
+if (existsSync(typesDir)) {
+  console.log('Copying TypeScript type definitions...');
+  mkdirSync(distTypesDir, { recursive: true });
+  copyDir(typesDir, distTypesDir);
+  console.log('✓ TypeScript type definitions copied');
+}
 
 console.log('File copying completed successfully'); 
