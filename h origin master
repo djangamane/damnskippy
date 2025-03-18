@@ -1,0 +1,5 @@
+[33mcommit 0d0d5a1a4ba4dce54c9eaca6309c4f7e047ea388[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m
+Author: djangamane <janga.bussaja@gmail.com>
+Date:   Tue Mar 18 16:34:26 2025 -0700
+
+    Fix deployment configuration for proper file handling and TypeScript support

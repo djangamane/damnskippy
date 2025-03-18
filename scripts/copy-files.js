@@ -46,12 +46,8 @@ if (existsSync(serverSrc)) {
 // Copy environment file if it exists
 const envFile = join(rootDir, '.env');
 if (existsSync(envFile)) {
-  try {
-    copyFileSync(envFile, join(serverDist, '.env'));
-    console.log('✓ Environment file copied');
-  } catch (error) {
-    console.error('⚠ Error copying environment file:', error.message);
-  }
+  copyFileSync(envFile, join(serverDist, '.env'));
+  console.log('✓ Environment file copied');
 } else {
   console.log('⚠ No .env file found');
 }
@@ -62,12 +58,8 @@ packageFiles.forEach(file => {
   const src = join(rootDir, file);
   const dest = join(rootDir, 'dist', file);
   if (existsSync(src)) {
-    try {
-      copyFileSync(src, dest);
-      console.log(`✓ ${file} copied`);
-    } catch (error) {
-      console.error(`⚠ Error copying ${file}:`, error.message);
-    }
+    copyFileSync(src, dest);
+    console.log(`✓ ${file} copied`);
   }
 });
 

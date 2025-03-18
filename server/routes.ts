@@ -1,10 +1,8 @@
 import { Router } from 'express';
-import { authRouter } from './auth.js';
 import { researchRouter } from './research.js';
+import { authRouter } from './auth.js';
 
-const router = Router();
+export const apiRouter = Router();
 
-router.use('/auth', authRouter);
-router.use('/research', researchRouter);
-
-export const apiRouter = router; 
+apiRouter.use('/auth', authRouter);
+apiRouter.use('/research', researchRouter); 
