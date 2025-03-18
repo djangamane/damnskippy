@@ -31,22 +31,28 @@ function copyDir(src, dest) {
   }
 }
 
+// Ensure dist directory exists
+const distDir = join(rootDir, 'dist');
+mkdirSync(distDir, { recursive: true });
+
 // Ensure dist/server directory exists
-const serverDist = join(rootDir, 'dist', 'server');
+const serverDist = join(distDir, 'server');
 mkdirSync(serverDist, { recursive: true });
 
-// Copy server files
-const serverSrc = join(rootDir, 'server');
-if (existsSync(serverSrc)) {
+// Copy compiled server files
+const serverBuildDir = join(rootDir, 'dist', 'server');
+if (existsSync(serverBuildDir)) {
   console.log('Copying server files...');
-  copyDir(serverSrc, serverDist);
+  copyDir(serverBuildDir, serverDist);
   console.log('✓ Server files copied');
+} else {
+  console.error('⚠ Server build directory not found');
 }
 
 // Copy environment file if it exists
 const envFile = join(rootDir, '.env');
 if (existsSync(envFile)) {
-  copyFileSync(envFile, join(serverDist, '.env'));
+  copyFileSync(envFile, join(distDir, '.env'));
   console.log('✓ Environment file copied');
 } else {
   console.log('⚠ No .env file found');
@@ -56,7 +62,7 @@ if (existsSync(envFile)) {
 const packageFiles = ['package.json', 'package-lock.json'];
 packageFiles.forEach(file => {
   const src = join(rootDir, file);
-  const dest = join(rootDir, 'dist', file);
+  const dest = join(distDir, file);
   if (existsSync(src)) {
     copyFileSync(src, dest);
     console.log(`✓ ${file} copied`);
