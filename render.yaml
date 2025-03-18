@@ -1,21 +1,19 @@
 services:
   - type: web
-    name: damnskippy
+    name: skipthegames4ai
     env: node
-    buildCommand: chmod +x ./build.sh && ./build.sh
-    startCommand: node server.mjs
+    buildCommand: npm install && npm run build:full && npm run render-postbuild
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3001
+      - key: MONGODB_URI
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: OPENAI_API_KEY
         sync: false
-      - key: MONGODB_URI
-        sync: false
-      - key: VITE_MONGODB_URI
-        sync: false
-    healthCheckPath: /health
+    healthCheckPath: /api/health
     autoDeploy: true 
