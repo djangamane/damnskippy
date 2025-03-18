@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "start": "node server.mjs",
+    "dev:server": "nodemon --watch server --exec \"npm run build:server && node dist/server/index.js\"",
+    "dev:full": "concurrently \"npm run dev\" \"npm run dev:server\"",
+    "start": "node dist/server/index.js",
     "build": "tsc && vite build",
     "build:server": "tsc -p tsconfig.server.json --skipLibCheck",
-    "start:prod": "node server.mjs",
+    "start:prod": "node dist/server/index.js",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "postinstall": "npm run build && npm run build:server",
@@ -28,7 +30,7 @@
     "@typescript-eslint/parser": "^7.0.2",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",
-    "axios": "^1.6.7",
+    "axios": "^1.8.3",
     "bcryptjs": "^3.0.2",
     "concurrently": "^9.1.2",
     "cors": "^2.8.5",
@@ -39,7 +41,7 @@
     "express": "^4.18.3",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.14.2",
-    "openai": "^4.28.4",
+    "openai": "^4.87.3",
     "postcss": "^8.4.35",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -50,5 +52,8 @@
     "vite": "^5.1.4"
   },
   "devDependencies": {
+    "kill-port": "^2.0.1",
+    "nodemon": "^3.1.9",
+    "tsx": "^4.19.3"
   }
 }

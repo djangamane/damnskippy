@@ -5,39 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import config from '../config/api';
 
-interface AutomationWorkflow {
-  title: string;
-  description: string;
-  url: string;
-}
-
-interface PremiumService {
-  title: string;
-  description: string;
-  price: string;
-  button: string;
-}
-
-interface N8nWorkflow {
-  json: any;
-  explanation: string;
-  name: string;
-}
-
 interface ResearchResult {
-  automation: AutomationWorkflow[];
-  research: {
-    content: string;
-    sources: string[];
-  };
-  premium_service: PremiumService;
-  n8n_workflow: N8nWorkflow;
-  youtube_video?: {
-    title: string;
-    url: string;
-    thumbnail: string;
-    description: string;
-  };
+  content: string;
 }
 
 // Add Calendly popup functionality
@@ -171,39 +140,79 @@ export default function ResearchEngine() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!query.trim()) {
+      setError('Please enter a research query');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
+    setResult(null);
     
     try {
-      console.log('Starting research process for query:', query);
+      console.log('Sending research request for:', query);
       
-      const response = await axios.post(`${config.apiUrl}/api/research`, { query });
-      setResult(response.data);
+      const response = await axios.post(`${config.apiUrl}/api/research`, { query }, {
+        timeout: 120000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Raw API Response:', response);
+
+      // Extract content from response with fallbacks
+      let content: string | null = null;
+
+      if (response.data) {
+        // Handle n8n workflow format
+        if (response.data.data?.content) {
+          content = response.data.data.content;
+        } else if (response.data.content) {
+          content = response.data.content;
+        } else if (typeof response.data === 'string') {
+          content = response.data;
+        } else if (response.data.choices?.[0]?.message?.content) {
+          content = response.data.choices[0].message.content;
+        } else {
+          // If none of the above, try to extract meaningful content
+          const jsonString = JSON.stringify(response.data, null, 2);
+          if (jsonString.includes('"content":')) {
+            const match = jsonString.match(/"content":\s*"([^"]+)"/);
+            content = match ? match[1] : jsonString;
+          } else {
+            content = jsonString;
+          }
+        }
+      }
+
+      console.log('Extracted content:', content);
+
+      if (!content) {
+        throw new Error('No content found in response');
+      }
+
+      // Clean up any escaped characters
+      content = content.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+
+      // Set the result and clear any errors
+      setResult({ content });
+      setError(null);
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('Research error:', err);
-      setError('Failed to perform research. Please try again.');
+      console.error('Full error details:', {
+        message: err.message,
+        code: err.code,
+        response: err.response,
+        stack: err.stack
+      });
+      
+      setError(err.message || 'An error occurred while processing your request');
+      setResult(null);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const downloadWorkflowJson = () => {
-    if (!result) return;
-    
-    const workflowJson = JSON.stringify(result.n8n_workflow.json, null, 2);
-    const blob = new Blob([workflowJson], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${result.n8n_workflow.name.replace(/\s+/g, '_')}.json`;
-    document.body.appendChild(a);
-    a.click();
-    
-    // Cleanup
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -269,103 +278,26 @@ export default function ResearchEngine() {
         {isLoading && (
           <div className="flex flex-col items-center justify-center my-12 space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-            <p className="text-lg text-indigo-700 font-medium">Finding your build/automation solution...</p>
+            <p className="text-lg text-indigo-700 font-medium">Performing deep research on your request...</p>
+            <p className="text-sm text-indigo-500">This may take a minute or two for comprehensive results</p>
           </div>
         )}
 
-        {result && (
+        {result?.content && (
           <div className="space-y-8">
-            {/* n8n Workflow Section */}
-            <div className="bg-white p-6 rounded-lg shadow-md border border-indigo-100">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-semibold text-indigo-900">n8n Workflow: {result.n8n_workflow.name}</h2>
-                <button
-                  onClick={downloadWorkflowJson}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2 shadow-sm"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                  Download Workflow
-                </button>
-              </div>
-              
-              <div className="mb-4">
-                <h3 className="text-xl font-medium mb-2 text-indigo-800">Explanation</h3>
-                <p className="text-gray-700">{result.n8n_workflow.explanation}</p>
-              </div>
-              
-              <div>
-                <h3 className="text-xl font-medium mb-2 text-indigo-800">Workflow JSON</h3>
-                <div className="bg-indigo-50 p-4 rounded-md overflow-auto max-h-60 border border-indigo-100">
-                  <pre className="text-sm text-gray-800">
-                    {JSON.stringify(result.n8n_workflow.json, null, 2)}
-                  </pre>
-                </div>
-              </div>
-            </div>
-
-            {/* YouTube Video Section */}
-            {result.youtube_video && (
-              <div className="bg-white p-6 rounded-lg shadow-md border border-indigo-100">
-                <h2 className="text-2xl font-semibold mb-4 text-indigo-900">Related Tutorial</h2>
-                <div className="flex flex-col md:flex-row gap-6">
-                  <div className="md:w-1/2">
-                    <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                      <iframe
-                        className="absolute top-0 left-0 w-full h-full rounded-lg shadow-md"
-                        src={result.youtube_video.url}
-                        title={result.youtube_video.title}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        loading="lazy"
-                      ></iframe>
-                    </div>
-                  </div>
-                  <div className="md:w-1/2">
-                    <h3 className="text-xl font-medium mb-2 text-indigo-800">{result.youtube_video.title}</h3>
-                    <p className="text-gray-700 mb-4">{result.youtube_video.description}</p>
-                    <a 
-                      href={result.youtube_video.url.replace('embed/', 'watch?v=')}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                        <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                      </svg>
-                      Watch on YouTube
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Research Results Section */}
             <div className="bg-white p-6 rounded-lg shadow-md border border-indigo-100">
               <h2 className="text-2xl font-semibold mb-4 text-indigo-900">Research Results</h2>
               <div className="prose max-w-none">
-                <div className="whitespace-pre-wrap text-gray-700">{result.research.content}</div>
+                <pre className="whitespace-pre-wrap text-gray-700 font-sans p-4 bg-gray-50 rounded-lg">
+                  {result.content}
+                </pre>
               </div>
-              
-              {result.research.sources.length > 0 && (
-                <div className="mt-6">
-                  <h3 className="text-xl font-semibold mb-3 text-indigo-800">Sources</h3>
-                  <ul className="list-disc pl-5 space-y-2">
-                    {result.research.sources.map((source, index) => (
-                      <li key={index} className="text-gray-600">
-                        {source}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
             </div>
 
             {/* Premium Service Section */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-700 p-6 rounded-lg shadow-md text-white">
-              <h2 className="text-2xl font-semibold mb-4">Custom Automation Solution</h2>
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-700 p-8 rounded-lg shadow-lg text-white">
+              <h2 className="text-4xl font-extrabold mb-6 text-center">LET US DO IT FOR YOU</h2>
               <p className="text-white/90 mb-4">
                 Need a more sophisticated solution for {query}? Our team can build a custom automation 
                 tailored to your specific business requirements with expert implementation and ongoing support.
@@ -391,88 +323,155 @@ export default function ResearchEngine() {
           </div>
         )}
         
-        {/* Featured Section - Always visible */}
-        <div className="mt-16 pt-8 border-t border-indigo-200">
-          <h2 className="text-3xl font-bold text-center text-indigo-900 mb-8">Featured Package</h2>
+        {/* Featured Packages Section - Always visible */}
+        <div className="mt-12">
+          <h2 className="text-3xl font-bold text-center text-indigo-900 mb-8">Featured Packages</h2>
           
-          <div className="bg-gradient-to-r from-emerald-600 to-indigo-700 rounded-xl shadow-xl overflow-hidden">
-            <div className="p-1 bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500">
-              <div className="bg-white p-6 rounded-t-lg">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-2xl font-bold text-indigo-900">GFE Special</h3>
-                  <div className="bg-red-600 text-white px-4 py-1 rounded-full font-bold text-sm">$1,000</div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-red-600 text-2xl">🔥</span>
-                    <p className="font-semibold text-gray-800">100 Days of Fully Automated Cold Outreach (Mon-Fri)</p>
+          <div className="flex flex-col gap-8 max-w-2xl mx-auto">
+            {/* GFE Special */}
+            <div 
+              onClick={() => openCalendly('https://calendly.com/janga-bussaja/discovery')}
+              className="aspect-square bg-gradient-to-r from-emerald-600 to-indigo-700 rounded-xl shadow-xl overflow-hidden cursor-pointer transform transition-transform duration-200 hover:scale-[1.02]"
+            >
+              <div className="p-1 bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500">
+                <div className="bg-white p-8 h-full rounded-t-lg">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-2xl font-bold text-indigo-900">GFE Special</h3>
+                    <div className="bg-red-600 text-white px-4 py-1 rounded-full font-bold text-sm">$1,000</div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-indigo-600 text-xl">📩</span>
-                      <p className="text-gray-700">25 Cold Emails/Day</p>
+                      <span className="text-red-600 text-2xl">🔥</span>
+                      <p className="font-semibold text-gray-800">100 Days of Fully Automated Cold Outreach (Mon-Fri)</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-indigo-600 text-xl">📞</span>
-                      <p className="text-gray-700">25 Cold Calls/Day</p>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-indigo-600 text-xl">📩</span>
+                        <p className="text-gray-700">25 Cold Emails/Day</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-indigo-600 text-xl">📞</span>
+                        <p className="text-gray-700">25 Cold Calls/Day</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-indigo-600 text-xl">💬</span>
+                        <p className="text-gray-700">25 Text Messages/Day</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-indigo-600 text-xl">🎥</span>
+                        <p className="text-gray-700">25 Minutes of AI-Generated Content/Day</p>
+                      </div>
                     </div>
+                    
                     <div className="flex items-center gap-2">
-                      <span className="text-indigo-600 text-xl">💬</span>
-                      <p className="text-gray-700">25 Text Messages/Day</p>
+                      <span className="text-indigo-600 text-xl">📊</span>
+                      <p className="text-gray-700">CRM Integration to Track & Nurture Leads (Upgrade Available)</p>
                     </div>
+                    
                     <div className="flex items-center gap-2">
-                      <span className="text-indigo-600 text-xl">🎥</span>
-                      <p className="text-gray-700">25 Minutes of AI-Generated Content/Day</p>
+                      <span className="text-indigo-600 text-xl">📈</span>
+                      <p className="text-gray-700">10,000 Pre-Qualified Leads Provided</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <span className="text-indigo-600 text-xl">📊</span>
-                    <p className="text-gray-700">CRM Integration to Track & Nurture Leads (Upgrade Available)</p>
+                  <div className="space-y-2 mt-4">
+                    <div className="flex items-start gap-2">
+                      <span className="text-emerald-600 text-xl mt-0.5">✅</span>
+                      <p className="text-gray-700">Hands-Free Lead Generation & Follow-Ups</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-emerald-600 text-xl mt-0.5">✅</span>
+                      <p className="text-gray-700">AI-Powered Outreach That Works While You Sleep</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-emerald-600 text-xl mt-0.5">✅</span>
+                      <p className="text-gray-700">Perfect for Nonprofits, Solopreneurs & Businesses</p>
+                    </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <span className="text-indigo-600 text-xl">📈</span>
-                    <p className="text-gray-700">10,000 Pre-Qualified Leads Provided</p>
-                  </div>
-                </div>
-                
-                <div className="mt-6 space-y-3">
-                  <div className="flex items-start gap-2">
-                    <span className="text-emerald-600 text-xl mt-0.5">✅</span>
-                    <p className="text-gray-700">Hands-Free Lead Generation & Follow-Ups</p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-emerald-600 text-xl mt-0.5">✅</span>
-                    <p className="text-gray-700">AI-Powered Outreach That Works While You Sleep</p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-emerald-600 text-xl mt-0.5">✅</span>
-                    <p className="text-gray-700">Perfect for Nonprofits, Solopreneurs & Businesses</p>
-                  </div>
-                </div>
-                
-                <div className="mt-6 bg-indigo-50 p-4 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <span className="text-indigo-600 text-xl mt-0.5">💡</span>
-                    <p className="text-indigo-800">Want full CRM management & AI-driven follow-ups? We've got upgrades for that.</p>
+                  <div className="mt-6 bg-indigo-50 p-4 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <span className="text-indigo-600 text-xl mt-0.5">💡</span>
+                      <p className="text-indigo-800">Want full CRM management & AI-driven follow-ups? We've got upgrades for that.</p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            
-            <div className="p-6 bg-gradient-to-r from-indigo-600 to-purple-700 flex justify-center">
-              <button 
-                onClick={() => openCalendly('https://calendly.com/janga-bussaja/gfe-special')}
-                className="px-8 py-4 bg-white text-indigo-700 font-bold rounded-lg hover:bg-indigo-50 transition-colors inline-flex items-center gap-2 shadow-md text-lg"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Automate My Lead Generation Now
-              </button>
+
+            {/* QV Special */}
+            <div 
+              onClick={() => openCalendly('https://calendly.com/janga-bussaja/discovery')}
+              className="aspect-square bg-gradient-to-r from-purple-600 to-pink-700 rounded-xl shadow-xl overflow-hidden cursor-pointer transform transition-transform duration-200 hover:scale-[1.02]"
+            >
+              <div className="p-1 bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500">
+                <div className="bg-white p-8 h-full rounded-t-lg">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-2xl font-bold text-indigo-900">QV Special</h3>
+                    <div className="bg-red-600 text-white px-4 py-1 rounded-full font-bold text-sm">$500</div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-red-600 text-2xl">🚀</span>
+                      <p className="font-semibold text-gray-800">Complete AI Website & Business Automation</p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-indigo-600 text-xl">🌐</span>
+                        <p className="text-gray-700">Custom AI-Powered Website</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-indigo-600 text-xl">🤖</span>
+                        <p className="text-gray-700">AI Chatbot Integration</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-indigo-600 text-xl">📊</span>
+                        <p className="text-gray-700">Business Process Automation</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-indigo-600 text-xl">📈</span>
+                        <p className="text-gray-700">Analytics & Reporting Dashboard</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <span className="text-indigo-600 text-xl">🔄</span>
+                      <p className="text-gray-700">Automated Content Generation & Management</p>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <span className="text-indigo-600 text-xl">🛠️</span>
+                      <p className="text-gray-700">Custom Workflow Automation</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 mt-4">
+                    <div className="flex items-start gap-2">
+                      <span className="text-emerald-600 text-xl mt-0.5">✅</span>
+                      <p className="text-gray-700">24/7 Automated Business Operations</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-emerald-600 text-xl mt-0.5">✅</span>
+                      <p className="text-gray-700">Seamless Integration with Existing Tools</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-emerald-600 text-xl mt-0.5">✅</span>
+                      <p className="text-gray-700">Ongoing Support & Maintenance</p>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 bg-indigo-50 p-4 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <span className="text-indigo-600 text-xl mt-0.5">💡</span>
+                      <p className="text-indigo-800">Need additional customization? Let's discuss your specific requirements.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
