@@ -8,9 +8,21 @@ import jwt from 'jsonwebtoken';
 import { MongoClient, ObjectId } from 'mongodb';
 import fs from 'fs';
 import { researchRouter } from './research.js';
+import { apiRouter } from './routes.js';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Load environment variables
-dotenv.config({ path: '.env.server' });
+const envPath = path.join(process.cwd(), '.env.server');
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+  console.log('Environment loading from:', envPath);
+} else {
+  dotenv.config();
+  console.log('Using default .env file');
+}
 
 // Log loaded environment variables
 console.log('Environment variables loaded:', {
@@ -221,11 +233,19 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Serve static files from the dist directory
+app.use(express.static(path.join(__dirname, '../../dist')));
+
 // Routes
 app.use('/api', apiRouter);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
+// Serve index.html for all other routes (client-side routing)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../dist/index.html'));
 });
 
 // Error handling middleware
