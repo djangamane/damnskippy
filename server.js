@@ -254,7 +254,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Set server-wide timeout values
 app.timeout = 180000; // 3 minutes
-server.timeout = 180000;
 
 // Increase server timeout for long-running requests
 app.use((req, res, next) => {
@@ -718,7 +717,7 @@ app.get('*', (req, res) => {
 const http = require('http');
 const server = http.createServer(app);
 
-// Set server-wide timeout (2 minutes = 120000ms)
+// Set server-wide timeout (3 minutes = 180000ms)
 server.timeout = 180000; // 3 minutes
 server.keepAliveTimeout = 180000; // 3 minutes
 server.headersTimeout = 180000; // 3 minutes
