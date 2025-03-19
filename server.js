@@ -5,6 +5,8 @@ const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
 
 // Load environment variables
 dotenv.config();
@@ -32,13 +34,8 @@ const users = [
 
 // Try to connect to MongoDB, but don't block server startup
 try {
-  const mongoose = require('mongoose');
-  const bcrypt = require('bcrypt');
-  
-  // MongoDB Connection
-  const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://janga:busseja@janga0.f5z2f6j.mongodb.net/damnskippy?retryWrites=true&w=majority';
-  
-  mongoose.connect(MONGODB_URI, {
+  console.log('Attempting to connect to MongoDB...');
+  mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://janga:busseja@janga0.f5z2f6j.mongodb.net/damnskippy?retryWrites=true&w=majority', {
     // These options help with connection issues
     connectTimeoutMS: 30000,
     socketTimeoutMS: 45000,
@@ -379,8 +376,6 @@ app.post('/api/auth/signup', async (req, res) => {
   try {
     const { email, password, displayName } = req.body;
     console.log('Signup attempt for email:', email);
-    console.log('MongoDB connection state:', mongoose.connection.readyState);
-    console.log('Using in-memory storage:', useInMemoryStorage);
 
     // Validate request
     if (!email || !password) {
@@ -391,7 +386,15 @@ app.post('/api/auth/signup', async (req, res) => {
       });
     }
 
-    // Check if user already exists
+    if (useInMemoryStorage) {
+      console.log('Using in-memory storage for signup');
+      return res.status(500).json({
+        success: false,
+        message: 'Server is in fallback mode. Please try again later.'
+      });
+    }
+
+    // Check if user already exists using the global User model
     const existingUser = await global.User.findOne({ email: email.toLowerCase() });
     console.log('Existing user check result:', existingUser ? 'User exists' : 'User does not exist');
     
@@ -402,7 +405,7 @@ app.post('/api/auth/signup', async (req, res) => {
       });
     }
 
-    // Create new user
+    // Create new user using the global User model
     console.log('Creating new user with email:', email);
     const user = new global.User({
       email: email.toLowerCase(),
