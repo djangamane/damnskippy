@@ -126,9 +126,9 @@ const Dashboard = () => {
     };
   }, []);
 
-  // Fetch research threads and workflows when tab changes or for premium users
+  // Fetch research threads and workflows when tab changes
   useEffect(() => {
-    if (!user?.isPaidUser || !token) return;
+    if (!token) return;
     
     async function fetchData() {
       setLoading(true);
@@ -142,9 +142,8 @@ const Dashboard = () => {
             }
           });
           
-          if (response.data.success) {
-            setThreads(response.data.data);
-          }
+          // The response is an array of threads directly
+          setThreads(response.data);
         } else {
           const response = await axios.get('/api/workflows', {
             headers: {
@@ -158,14 +157,14 @@ const Dashboard = () => {
         }
       } catch (err: any) {
         console.error(`Failed to fetch ${activeTab}:`, err);
-        setError(err.response?.data?.message || 'An error occurred while fetching data');
+        setError(err.response?.data?.error || 'An error occurred while fetching data');
       } finally {
         setLoading(false);
       }
     }
     
     fetchData();
-  }, [activeTab, user?.isPaidUser, token]);
+  }, [activeTab, token]);
 
   const handleSignOut = async () => {
     try {
