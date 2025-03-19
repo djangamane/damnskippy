@@ -546,7 +546,10 @@ app.post('/api/payment/confirm', async (req, res) => {
     const { transactionId } = req.body;
     const authHeader = req.headers.authorization;
     
+    console.log('Payment confirmation request received:', { transactionId });
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('Authentication missing');
       return res.status(401).json({
         success: false,
         message: 'Authentication required'
@@ -554,6 +557,7 @@ app.post('/api/payment/confirm', async (req, res) => {
     }
     
     if (!transactionId) {
+      console.log('Transaction ID missing');
       return res.status(400).json({
         success: false,
         message: 'Transaction ID is required'
@@ -565,10 +569,13 @@ app.post('/api/payment/confirm', async (req, res) => {
     
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
+      console.log('Token verified, looking up user:', decoded.id);
+      
       if (!useInMemoryStorage) {
         user = await global.User.findById(decoded.id);
       }
     } catch (err) {
+      console.error('Token verification failed:', err);
       return res.status(401).json({
         success: false,
         message: 'Invalid token'
@@ -576,6 +583,7 @@ app.post('/api/payment/confirm', async (req, res) => {
     }
     
     if (!user) {
+      console.log('User not found');
       return res.status(401).json({
         success: false,
         message: 'User not found'
@@ -584,19 +592,38 @@ app.post('/api/payment/confirm', async (req, res) => {
     
     console.log(`Payment confirmation received - User: ${user.email}, Transaction: ${transactionId}`);
     
-    // In a production environment, send email notification
-    // For now, just log it
-    console.log(`PAYMENT NOTIFICATION: User ${user.email} (${user._id}) submitted transaction ${transactionId}`);
-    
-    res.json({
-      success: true,
-      message: 'Payment confirmation received. Your account will be upgraded once the payment is verified.'
-    });
+    // Immediately upgrade the user's status
+    try {
+      user.isPaidUser = true;
+      await user.save();
+      console.log(`User ${user.email} upgraded to paid status`);
+      
+      // Return success with the updated user data
+      const userData = {
+        _id: user._id,
+        email: user.email,
+        displayName: user.displayName,
+        isPaidUser: true,
+        createdAt: user.createdAt
+      };
+      
+      res.json({
+        success: true,
+        message: 'Your account has been upgraded successfully.',
+        data: userData
+      });
+    } catch (saveError) {
+      console.error('Error saving user upgrade:', saveError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to upgrade account. Please contact support.'
+      });
+    }
   } catch (error) {
     console.error('Payment confirmation error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to process payment confirmation'
+      message: 'Failed to process payment confirmation. Please try again or contact support.'
     });
   }
 });
