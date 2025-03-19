@@ -34,6 +34,12 @@ async function performResearch(query: string): Promise<string> {
 
     console.log('Performing research with OpenAI for:', query);
 
+    // Set options with longer timeout
+    const options = {
+      timeout: 120000, // 2 minute timeout
+    };
+
+    // Call the OpenAI API with increased max_tokens
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
       messages: [
@@ -54,8 +60,8 @@ async function performResearch(query: string): Promise<string> {
         }
       ],
       temperature: 0.7,
-      max_tokens: 2000,
-    });
+      max_tokens: 4000, // Increased from 2000 to allow more comprehensive responses
+    }, options);
 
     console.log('OpenAI response received successfully');
     return completion.choices[0].message.content || 'No results found';
@@ -221,43 +227,74 @@ router.get('/threads', authenticate, async (req: Request, res: Response) => {
 });
 
 // Get a specific research thread
-router.get('/threads/:id', async (req: Request, res: Response) => {
+router.get('/threads/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const user = await extractUserFromRequest(req);
     const threadId = req.params.id;
     
     if (!user) {
-      res.status(401).json({
+      return res.status(401).json({
         success: false,
         message: 'Authentication required'
       });
-      return;
     }
+    
+    console.log(`Fetching research thread ${threadId} for user ${user.id}`);
     
     // Find thread by ID
     let thread: ResearchThread | undefined;
     
     if (global.researchThreads && Array.isArray(global.researchThreads)) {
       thread = global.researchThreads.find(t => t.id === threadId && t.userId === user.id);
+      console.log(`Thread found in memory: ${!!thread}`);
     }
     
     if (!thread) {
-      res.status(404).json({
+      console.log(`Thread not found in memory, trying database...`);
+      // Try to get from database if we have the ResearchThread model available
+      if (global.ResearchThread) {
+        try {
+          const dbThread = await global.ResearchThread.findOne({ 
+            _id: threadId.replace('thread_', ''), 
+            userId: user.id 
+          });
+          
+          if (dbThread) {
+            thread = {
+              id: dbThread._id.toString(),
+              userId: dbThread.userId,
+              query: dbThread.query,
+              result: dbThread.result,
+              timestamp: dbThread.timestamp.toISOString(),
+              tags: dbThread.tags || []
+            };
+            console.log(`Thread found in database`);
+          }
+        } catch (dbError) {
+          console.error('Error fetching thread from database:', dbError);
+        }
+      }
+    }
+    
+    if (!thread) {
+      console.log(`Thread not found, returning 404`);
+      return res.status(404).json({
         success: false,
         message: 'Research thread not found'
       });
-      return;
     }
     
-    res.json({
+    console.log(`Successfully returning thread`);
+    return res.json({
       success: true,
       data: thread
     });
   } catch (error) {
     console.error('Error fetching research thread:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch research thread'
+      message: 'Failed to fetch research thread',
+      error: error.message
     });
   }
 });
