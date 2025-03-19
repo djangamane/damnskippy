@@ -1,12 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import { config } from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import path from 'path';
 import { apiRouter } from './routes.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __filename = path.join(process.cwd(), 'server', 'index.ts');
+const __dirname = path.dirname(__filename);
+
+config();
 
 // Set up paths based on environment
 let staticPath = '';
@@ -23,32 +24,20 @@ console.log('Is Render environment:', isRender);
 // Configure paths based on environment
 if (isRender) {
   // In Render, static files are at /opt/render/project/src/dist
-  staticPath = join('/opt/render/project/src/dist');
-  currentPath = join('/opt/render/project/src');
+  staticPath = path.join('/opt/render/project/src/dist');
+  currentPath = path.join('/opt/render/project/src/dist', 'index.html');
 } else if (process.env.NODE_ENV === 'production') {
   // In other production environments
-  staticPath = join(dirname(__dirname));
-  currentPath = join(dirname(dirname(__dirname)));
+  staticPath = path.join(path.dirname(__dirname));
+  currentPath = path.join(path.dirname(path.dirname(__dirname)), 'index.html');
 } else {
   // In development
-  staticPath = join(dirname(dirname(__dirname)), 'dist');
-  currentPath = dirname(dirname(__dirname));
+  staticPath = path.join(path.dirname(path.dirname(__dirname)), 'dist');
+  currentPath = path.join(path.dirname(path.dirname(__dirname)), 'index.html');
 }
 
-// Load environment variables
-const envPath = process.env.NODE_ENV === 'production' 
-  ? join(currentPath, '.env')
-  : join(currentPath, '.env.server');
-
-config({ path: envPath });
-
-console.log(`Environment loading from: ${envPath}`);
-console.log('Environment variables status:', {
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'Present' : 'Not present',
-  MONGODB_URI: process.env.MONGODB_URI ? 'Present' : 'Not present',
-  JWT_SECRET: process.env.JWT_SECRET ? 'Present' : 'Not present'
-});
-console.log(`Static files will be served from: ${staticPath}`);
+console.log('Static path:', staticPath);
+console.log('Current path:', currentPath);
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -70,13 +59,11 @@ app.get('/api/health', (req, res) => {
 
 // Serve index.html for client-side routing
 app.get('*', (req, res) => {
-  const indexPath = join(staticPath, 'index.html');
-  console.log(`Serving index.html from: ${indexPath}`);
-  res.sendFile(indexPath);
+  console.log(`Serving index.html from: ${currentPath}`);
+  res.sendFile(currentPath);
 });
 
-// Start server
-const startServer = async () => {
+async function startServer() {
   try {
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
@@ -88,6 +75,7 @@ const startServer = async () => {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
-};
+}
 
-startServer(); 
+// Start server
+startServer();

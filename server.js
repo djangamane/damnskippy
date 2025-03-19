@@ -5,13 +5,16 @@ const fs = require('fs');
 // Check if we're in production (Render) environment
 const isRender = process.env.IS_RENDER === 'true';
 
-// In production, use the compiled server code
 if (isRender) {
-  const serverPath = path.join(__dirname, 'dist', 'server', 'index.js');
+  // In production, use the compiled server code
+  console.log('Starting server in production mode...');
+  const serverDistPath = path.join(__dirname, 'dist', 'server');
+  const serverPath = path.join(serverDistPath, 'index.js');
+
   if (fs.existsSync(serverPath)) {
     console.log(`Server file found at: ${serverPath}`);
+    process.env.NODE_ENV = 'production';
     require(serverPath);
-    console.log('Server started successfully via server.js entry point');
   } else {
     console.error(`Server file not found at: ${serverPath}`);
     console.error('Available files in dist directory:');
@@ -21,7 +24,6 @@ if (isRender) {
         console.log('Contents of dist directory:');
         console.log(fs.readdirSync(distPath));
         
-        const serverDistPath = path.join(distPath, 'server');
         if (fs.existsSync(serverDistPath)) {
           console.log('Contents of dist/server directory:');
           console.log(fs.readdirSync(serverDistPath));
@@ -38,7 +40,11 @@ if (isRender) {
   }
 } else {
   // In development, use ts-node to run the TypeScript server directly
-  require('ts-node').register();
+  console.log('Starting server in development mode...');
+  process.env.NODE_ENV = 'development';
+  require('ts-node').register({
+    project: path.join(__dirname, 'tsconfig.server.json')
+  });
   require('./server/index.ts');
 }
 

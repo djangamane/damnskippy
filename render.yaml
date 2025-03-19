@@ -2,7 +2,10 @@ services:
   - type: web
     name: skipthegames4ai
     env: node
-    buildCommand: npm install --include=dev && bash ./build.sh
+    buildCommand: |
+      npm install --include=dev
+      npm run build
+      npx tsc --project tsconfig.server.json
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
