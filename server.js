@@ -106,6 +106,62 @@ app.post('/api/auth/signout', (req, res) => {
   res.json({ success: true });
 });
 
+// Sign up route
+app.post('/api/auth/signup', (req, res) => {
+  try {
+    console.log('Sign-up request received:', { 
+      email: req.body.email, 
+      password: '[REDACTED]',
+      displayName: req.body.displayName 
+    });
+    
+    // Validate request
+    if (!req.body.email || !req.body.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+    }
+    
+    // In a real app, we would check if the user already exists
+    // and hash the password before storing it in the database
+    
+    // For demonstration purposes, we'll create a new user with a random ID
+    const userId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    
+    // Create user object
+    const user = {
+      _id: userId,
+      email: req.body.email,
+      displayName: req.body.displayName || req.body.email.split('@')[0],
+      createdAt: new Date().toISOString()
+    };
+    
+    // Generate token
+    const token = jwt.sign(
+      { email: user.email, id: user._id },
+      process.env.JWT_SECRET || 'default-secret',
+      { expiresIn: '24h' }
+    );
+    
+    console.log('User created successfully:', { userId, email: user.email });
+    
+    // Return success response
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      token,
+      data: user
+    });
+  } catch (error) {
+    console.error('Sign-up error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 // Research API endpoint
 app.post('/api/research', async (req, res) => {
   try {
