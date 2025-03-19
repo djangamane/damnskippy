@@ -1,26 +1,21 @@
 #!/bin/bash
 
-# Create directory structure
-echo "Creating directory structure..."
-mkdir -p dist/server
+echo "Starting simplified build process..."
 
 # Clean up any previous build artifacts
-echo "Cleaning up previous build artifacts..."
+echo "Cleaning dist directory..."
 rm -rf dist
 
-# Build the client
-echo "Building client..."
+# Build the client-side app
+echo "Building client-side app..."
 npm run build
 
-# Build the server
-echo "Building server..."
-npm run build:server
+# Copy files to ensure Render can find them
+echo "Setting up production structure..."
+cp -f server.js ./
+cp -f package.json ./
 
-# Log build info
-echo "Build completed!"
-echo "Directory structure:"
-ls -la dist/
-echo "Server directory:"
-ls -la dist/server/
-echo "Server index.js file:"
-cat dist/server/index.js | head -n 10 
+echo "Build process completed!"
+ls -la
+echo "Dist directory:"
+ls -la dist 

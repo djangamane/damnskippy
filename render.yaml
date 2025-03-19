@@ -2,34 +2,11 @@ services:
   - type: web
     name: skipthegames4ai
     env: node
-    buildCommand: |
-      echo "Starting build process..."
-      npm ci
-      echo "Cleaning dist directory..."
-      rm -rf dist
-      echo "Building client-side app..."
-      npm run build
-      echo "Building server-side code..."
-      npm run build:server
-      echo "Preparing Render-specific directory structure..."
-      mkdir -p /opt/render/project/src/dist/server
-      mkdir -p /opt/render/project/src/dist/assets
-      echo "Copying server files..."
-      cp -r dist/server/* /opt/render/project/src/dist/server/
-      echo "Copying client files..."
-      cp dist/index.html /opt/render/project/src/dist/ || echo "Warning: index.html not found"
-      cp -r dist/assets/* /opt/render/project/src/dist/assets/ || echo "Warning: assets not found"
-      echo "Verifying directory structure..."
-      ls -la /opt/render/project/src/dist/
-      ls -la /opt/render/project/src/dist/server/
-      ls -la /opt/render/project/src/dist/assets/ || echo "Assets directory is empty"
-      echo "Build process completed"
-    startCommand: IS_RENDER=true node /opt/render/project/src/dist/server/index.js
+    buildCommand: bash ./build.sh
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
-      - key: IS_RENDER
-        value: true
       - key: PORT
         value: 3001
       - key: MONGODB_URI
