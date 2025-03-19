@@ -7,6 +7,12 @@ const router = Router();
 
 // Configure email transport - multiple options
 let transporter: any = null;
+// More explicit debug logging for environment variables
+console.log('Email config debug:');
+console.log(`USE_SENDGRID=${process.env.USE_SENDGRID}`);
+console.log(`SENDGRID_API_KEY exists: ${!!process.env.SENDGRID_API_KEY}`);
+console.log(`ADMIN_EMAIL=${process.env.ADMIN_EMAIL}`);
+
 let useSendGrid = process.env.USE_SENDGRID === 'true' && process.env.SENDGRID_API_KEY;
 
 // Setup SendGrid if API key is provided
@@ -19,6 +25,8 @@ if (useSendGrid) {
     console.error('Failed to set up SendGrid:', error);
     useSendGrid = false;
   }
+} else {
+  console.log('SendGrid not configured - missing API key or USE_SENDGRID not set to true');
 }
 
 // Set up SMTP as backup option
@@ -113,6 +121,7 @@ router.post('/confirm', authenticate, async (req: Request, res: Response) => {
     }
     
     console.log(`Attempting to send email notification for user ${user.email} with transaction ${transactionId}`);
+    console.log(`Email config check in route handler: useSendGrid=${useSendGrid}, transporter exists=${!!transporter}`);
     
     // Save transaction record immediately in logs
     console.log(`PAYMENT NOTIFICATION: User ${user.email} (${user.id}) submitted transaction ${transactionId}`);
@@ -147,12 +156,18 @@ router.post('/confirm', authenticate, async (req: Request, res: Response) => {
           html: htmlContent,
         };
         
+        console.log('SendGrid message configured:', JSON.stringify(msg, null, 2));
         await sgMail.send(msg);
         console.log('Email sent successfully with SendGrid');
         emailSent = true;
       } catch (sendGridError) {
         console.error('SendGrid email error:', sendGridError);
+        if (sendGridError.response) {
+          console.error('SendGrid error details:', JSON.stringify(sendGridError.response.body, null, 2));
+        }
       }
+    } else {
+      console.log('SendGrid not enabled, skipping SendGrid email attempt');
     }
     
     // Fall back to SMTP if SendGrid fails or is not configured
@@ -180,6 +195,8 @@ router.post('/confirm', authenticate, async (req: Request, res: Response) => {
       } catch (emailError) {
         console.error('SMTP email error:', emailError);
       }
+    } else if (!emailSent) {
+      console.log('SMTP transporter not available');
     }
     
     if (!emailSent) {
