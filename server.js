@@ -4,15 +4,10 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
 
 // Initialize Express app
 const app = express();
 const port = process.env.PORT || 3001;
-
-// MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/damnskippy';
 
 // For MongoDB connection issues in development, fall back to in-memory storage
 let useInMemoryStorage = true; // Default to in-memory storage
@@ -32,107 +27,122 @@ const users = [
 ];
 
 // Try to connect to MongoDB, but don't block server startup
-mongoose.connect(MONGODB_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
-    useInMemoryStorage = false;
-  })
-  .catch(err => {
-    console.error('MongoDB connection error:', err);
-    console.log('Using in-memory storage for users');
-  });
-
-// User Schema and Model
-const userSchema = new mongoose.Schema({
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true,
-    trim: true,
-    lowercase: true
-  },
-  password: { 
-    type: String, 
-    required: true 
-  },
-  displayName: { 
-    type: String, 
-    default: function() {
-      return this.email.split('@')[0];
-    }
-  },
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
-  },
-  lastLoginAt: { 
-    type: Date 
-  }
-});
-
-// Pre-save hook to hash password
-userSchema.pre('save', async function(next) {
-  // Only hash the password if it's modified (or new)
-  if (!this.isModified('password')) return next();
+try {
+  const mongoose = require('mongoose');
+  const bcrypt = require('bcrypt');
   
-  try {
-    // Generate a salt
-    const salt = await bcrypt.genSalt(10);
-    // Hash the password along with the new salt
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Method to compare passwords
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  try {
-    return await bcrypt.compare(candidatePassword, this.password);
-  } catch (error) {
-    throw error;
-  }
-};
-
-// Create the User model
-const User = mongoose.model('User', userSchema);
-
-// Create test users if they don't exist
-async function createTestUsers() {
-  try {
-    if (useInMemoryStorage) {
-      return;
-    }
-    
-    // Check if test user exists
-    const testUser = await User.findOne({ email: 'test@example.com' });
-    if (!testUser) {
-      await User.create({
-        email: 'test@example.com',
-        password: 'test123',
-        displayName: 'Test User'
+  // MongoDB Connection
+  const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://janga:busseja@janga0.f5z2f6j.mongodb.net/damnskippy?retryWrites=true&w=majority';
+  
+  mongoose.connect(MONGODB_URI, {
+    // These options help with connection issues
+    connectTimeoutMS: 30000,
+    socketTimeoutMS: 45000,
+    serverSelectionTimeoutMS: 60000,
+  })
+    .then(() => {
+      console.log('Connected to MongoDB');
+      useInMemoryStorage = false;
+      
+      // User Schema and Model
+      const userSchema = new mongoose.Schema({
+        email: { 
+          type: String, 
+          required: true, 
+          unique: true,
+          trim: true,
+          lowercase: true
+        },
+        password: { 
+          type: String, 
+          required: true 
+        },
+        displayName: { 
+          type: String, 
+          default: function() {
+            return this.email.split('@')[0];
+          }
+        },
+        createdAt: { 
+          type: Date, 
+          default: Date.now 
+        },
+        lastLoginAt: { 
+          type: Date 
+        }
       });
-      console.log('Created test user');
-    }
-    
-    // Check if nonprofit user exists
-    const nonprofitUser = await User.findOne({ email: 'the.nonprofit.org@gmail.com' });
-    if (!nonprofitUser) {
-      await User.create({
-        email: 'the.nonprofit.org@gmail.com',
-        password: 'test123',
-        displayName: 'Nonprofit User'
+      
+      // Pre-save hook to hash password
+      userSchema.pre('save', async function(next) {
+        // Only hash the password if it's modified (or new)
+        if (!this.isModified('password')) return next();
+        
+        try {
+          // Generate a salt
+          const salt = await bcrypt.genSalt(10);
+          // Hash the password along with the new salt
+          this.password = await bcrypt.hash(this.password, salt);
+          next();
+        } catch (error) {
+          next(error);
+        }
       });
-      console.log('Created nonprofit user');
-    }
-  } catch (error) {
-    console.error('Error creating test users:', error);
-  }
+      
+      // Method to compare passwords
+      userSchema.methods.comparePassword = async function(candidatePassword) {
+        try {
+          return await bcrypt.compare(candidatePassword, this.password);
+        } catch (error) {
+          throw error;
+        }
+      };
+      
+      // Create the User model
+      const User = mongoose.model('User', userSchema);
+      
+      // Create test users if they don't exist
+      async function createTestUsers() {
+        try {
+          // Check if test user exists
+          const testUser = await User.findOne({ email: 'test@example.com' });
+          if (!testUser) {
+            await User.create({
+              email: 'test@example.com',
+              password: 'test123',
+              displayName: 'Test User'
+            });
+            console.log('Created test user');
+          }
+          
+          // Check if nonprofit user exists
+          const nonprofitUser = await User.findOne({ email: 'the.nonprofit.org@gmail.com' });
+          if (!nonprofitUser) {
+            await User.create({
+              email: 'the.nonprofit.org@gmail.com',
+              password: 'test123',
+              displayName: 'Nonprofit User'
+            });
+            console.log('Created nonprofit user');
+          }
+        } catch (error) {
+          console.error('Error creating test users:', error);
+        }
+      }
+      
+      // Call the function to create test users
+      createTestUsers();
+      
+      // Export the User model for use in routes
+      global.User = User;
+    })
+    .catch(err => {
+      console.error('MongoDB connection error:', err);
+      console.log('Using in-memory storage for users');
+    });
+} catch (error) {
+  console.error('Error loading MongoDB modules:', error.message);
+  console.log('Using in-memory storage for users');
 }
-
-// Call the function to create test users
-createTestUsers();
 
 // Middleware
 app.use(cors());
@@ -170,10 +180,14 @@ app.post('/api/auth/signin', async (req, res) => {
     }
     
     let user;
+    let isPasswordValid;
+    
     if (useInMemoryStorage) {
       user = users.find(u => u.email === req.body.email);
+      isPasswordValid = user && user.password === req.body.password;
     } else {
-      user = await User.findOne({ email: req.body.email });
+      user = await global.User.findOne({ email: req.body.email });
+      isPasswordValid = user && await user.comparePassword(req.body.password);
     }
     
     // Check if user exists
@@ -186,12 +200,6 @@ app.post('/api/auth/signin', async (req, res) => {
     }
     
     // Check password
-    let isPasswordValid;
-    if (useInMemoryStorage) {
-      isPasswordValid = user.password === req.body.password;
-    } else {
-      isPasswordValid = await user.comparePassword(req.body.password);
-    }
     if (!isPasswordValid) {
       console.log('Invalid password for:', req.body.email);
       return res.status(401).json({
@@ -202,7 +210,7 @@ app.post('/api/auth/signin', async (req, res) => {
     
     console.log('Login successful for:', user.email);
     
-    // Update last login time
+    // Update last login time (only for MongoDB storage)
     if (!useInMemoryStorage) {
       user.lastLoginAt = new Date();
       await user.save();
@@ -261,7 +269,11 @@ app.post('/api/auth/signup', async (req, res) => {
       });
     }
     
+    let newUser;
+    let userData;
+    
     if (useInMemoryStorage) {
+      // Check if user already exists in memory
       const existingUser = users.find(u => u.email === req.body.email);
       if (existingUser) {
         return res.status(409).json({
@@ -270,7 +282,8 @@ app.post('/api/auth/signup', async (req, res) => {
         });
       }
       
-      const newUser = {
+      // Create new user in memory
+      newUser = {
         _id: Date.now().toString(),
         email: req.body.email,
         password: req.body.password,
@@ -278,34 +291,20 @@ app.post('/api/auth/signup', async (req, res) => {
         createdAt: new Date()
       };
       
+      // Add to in-memory array
       users.push(newUser);
       
-      console.log('User created successfully:', { id: newUser._id, email: newUser.email });
-      
-      // Generate token
-      const token = jwt.sign(
-        { email: newUser.email, id: newUser._id },
-        process.env.JWT_SECRET || 'default-secret',
-        { expiresIn: '24h' }
-      );
-      
-      // Return user data without password
-      const userData = {
+      // Prepare user data for response
+      userData = {
         _id: newUser._id,
         email: newUser.email,
         displayName: newUser.displayName,
         createdAt: newUser.createdAt
       };
-      
-      // Return success response
-      res.status(201).json({
-        success: true,
-        message: 'User created successfully',
-        token,
-        data: userData
-      });
-    } else {
-      const existingUser = await User.findOne({ email: req.body.email });
+    } 
+    else {
+      // Check if user already exists in MongoDB
+      const existingUser = await global.User.findOne({ email: req.body.email });
       if (existingUser) {
         return res.status(409).json({
           success: false,
@@ -313,41 +312,42 @@ app.post('/api/auth/signup', async (req, res) => {
         });
       }
       
-      const newUser = new User({
+      // Create new user in MongoDB
+      newUser = new global.User({
         email: req.body.email,
         password: req.body.password,
         displayName: req.body.displayName || req.body.email.split('@')[0],
         createdAt: new Date()
       });
       
-      // Save user to database
+      // Save to database
       await newUser.save();
       
-      console.log('User created successfully:', { id: newUser._id, email: newUser.email });
-      
-      // Generate token
-      const token = jwt.sign(
-        { email: newUser.email, id: newUser._id },
-        process.env.JWT_SECRET || 'default-secret',
-        { expiresIn: '24h' }
-      );
-      
-      // Return user data without password
-      const userData = {
+      // Prepare user data for response
+      userData = {
         _id: newUser._id,
         email: newUser.email,
         displayName: newUser.displayName,
         createdAt: newUser.createdAt
       };
-      
-      // Return success response
-      res.status(201).json({
-        success: true,
-        message: 'User created successfully',
-        token,
-        data: userData
-      });
     }
+    
+    console.log('User created successfully:', { id: userData._id, email: userData.email });
+    
+    // Generate token
+    const token = jwt.sign(
+      { email: userData.email, id: userData._id },
+      process.env.JWT_SECRET || 'default-secret',
+      { expiresIn: '24h' }
+    );
+    
+    // Return success response
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      token,
+      data: userData
+    });
   } catch (error) {
     console.error('Sign-up error:', error);
     

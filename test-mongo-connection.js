@@ -2,12 +2,19 @@
 const { MongoClient } = require('mongodb');
 
 // MongoDB Connection URI
+// For Render deployment, use the environment variable
+// For local development, try to connect to MongoDB Atlas or fall back to local MongoDB
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://janga:busseja@janga0.f5z2f6j.mongodb.net/damnskippy?retryWrites=true&w=majority';
 
 async function testConnection() {
   console.log('Testing MongoDB connection with URI:', MONGODB_URI.replace(/:[^:]*@/, ':****@'));
   
-  const client = new MongoClient(MONGODB_URI);
+  const client = new MongoClient(MONGODB_URI, {
+    // These options help with connection issues
+    connectTimeoutMS: 30000,
+    socketTimeoutMS: 45000,
+    serverSelectionTimeoutMS: 60000,
+  });
   
   try {
     console.log('Attempting to connect to MongoDB...');
