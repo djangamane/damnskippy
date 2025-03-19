@@ -2,7 +2,7 @@ services:
   - type: web
     name: skipthegames4ai
     env: node
-    buildCommand: npm install --include=dev --legacy-peer-deps && bash ./build.sh
+    buildCommand: npm install --include=dev && npm run build
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
@@ -18,4 +18,4 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
     domains:
-      - skipthegames4ai.onrender.com 
+      - skipthegames4ai.onrender.com
