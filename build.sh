@@ -62,8 +62,8 @@ rm -rf dist
 echo "Building client-side app..."
 ./node_modules/.bin/vite build
 
-# Create a simplified server.js in the root directory
-echo "Creating server.js..."
+# Create a simplified server.js in the root directory using CommonJS syntax
+echo "Creating server.js with CommonJS syntax..."
 cat > server.js << 'EOL'
 // Simple monolithic server.js for production
 const express = require('express');
