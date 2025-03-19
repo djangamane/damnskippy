@@ -44,7 +44,7 @@ console.log('Copying server files...');
 const serverBuildDir = join(rootDir, 'dist', 'server');
 if (existsSync(serverBuildDir)) {
   const files = readdirSync(serverBuildDir);
-  files.forEach(file => {
+  for (const file of files) {
     const srcPath = join(serverBuildDir, file);
     const destPath = join(serverDist, file);
     try {
@@ -53,14 +53,14 @@ if (existsSync(serverBuildDir)) {
     } catch (error) {
       console.error(`⚠ Error copying ${file}:`, error.message);
     }
-  });
+  }
   console.log('✓ Server files copied');
 } else {
   console.error('⚠ Server build directory not found');
 }
 
 // Copy environment files
-const envFiles = ['.env', '.env.production', '.env.server'];
+const envFiles = ['.env', '.env.production'];
 envFiles.forEach(envFile => {
   const envPath = join(rootDir, envFile);
   if (existsSync(envPath)) {
