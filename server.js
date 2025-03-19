@@ -1,20 +1,45 @@
 // This file is used as the entry point for Render deployment
-// It simply imports and runs the compiled server code
-
 const path = require('path');
 const fs = require('fs');
 
-// Check if the compiled server file exists
-const serverPath = path.join(__dirname, 'dist', 'server', 'index.js');
+// Check if we're in production (Render) environment
+const isRender = process.env.IS_RENDER === 'true';
 
-if (fs.existsSync(serverPath)) {
-  console.log(`Server file found at: ${serverPath}`);
-  require(serverPath);
-  console.log('Server started successfully via server.js entry point');
+// In production, use the compiled server code
+if (isRender) {
+  const serverPath = path.join(__dirname, 'dist', 'server', 'index.js');
+  if (fs.existsSync(serverPath)) {
+    console.log(`Server file found at: ${serverPath}`);
+    require(serverPath);
+    console.log('Server started successfully via server.js entry point');
+  } else {
+    console.error(`Server file not found at: ${serverPath}`);
+    console.error('Available files in dist directory:');
+    try {
+      const distPath = path.join(__dirname, 'dist');
+      if (fs.existsSync(distPath)) {
+        console.log('Contents of dist directory:');
+        console.log(fs.readdirSync(distPath));
+        
+        const serverDistPath = path.join(distPath, 'server');
+        if (fs.existsSync(serverDistPath)) {
+          console.log('Contents of dist/server directory:');
+          console.log(fs.readdirSync(serverDistPath));
+        } else {
+          console.log('dist/server directory does not exist');
+        }
+      } else {
+        console.log('dist directory does not exist');
+      }
+    } catch (err) {
+      console.error('Error listing directories:', err);
+    }
+    process.exit(1);
+  }
 } else {
-  console.error(`Server file not found at: ${serverPath}`);
-  console.error('Please ensure the server has been built correctly');
-  process.exit(1);
+  // In development, use ts-node to run the TypeScript server directly
+  require('ts-node').register();
+  require('./server/index.ts');
 }
 
 // Simple monolithic server.js for production
