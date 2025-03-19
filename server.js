@@ -446,14 +446,7 @@ app.get('/api/research/history', async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'User not found'
-      });
-    }
-    
-    if (!user.isPaidUser) {
-      return res.status(403).json({
-        success: false,
-        message: 'Premium subscription required'
+        message: 'Authentication required'
       });
     }
     
