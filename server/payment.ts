@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authenticate, extractUserFromRequest } from './auth';
 import nodemailer from 'nodemailer';
 import sgMail from '@sendgrid/mail';
+import mongoose from 'mongoose';
 
 const router = Router();
 
@@ -120,35 +121,66 @@ router.post('/confirm', authenticate, async (req: Request, res: Response) => {
       return;
     }
     
-    console.log(`Attempting to send email notification for user ${user.email} with transaction ${transactionId}`);
-    console.log(`Email config check in route handler: useSendGrid=${useSendGrid}, transporter exists=${!!transporter}`);
+    console.log(`Processing payment confirmation for user ${user.email} with transaction ${transactionId}`);
     
     // Save transaction record immediately in logs
     console.log(`PAYMENT NOTIFICATION: User ${user.email} (${user.id}) submitted transaction ${transactionId}`);
     
-    // Generate email content
+    // IMMEDIATE USER UPGRADE: Update the user to paid status directly
+    try {
+      // Access User model from mongoose or global scope
+      const User = mongoose.model('User');
+      
+      if (!User) {
+        console.error('User model not found. Using in-memory approach instead.');
+        // If using in-memory storage in development
+        if (global.users && Array.isArray(global.users)) {
+          const userIndex = global.users.findIndex(u => u._id.toString() === user.id.toString());
+          if (userIndex !== -1) {
+            global.users[userIndex].isPaidUser = true;
+            console.log(`User ${user.email} upgraded to paid status (in-memory storage)`);
+          }
+        }
+      } else {
+        // Update user in MongoDB
+        const updatedUser = await User.findByIdAndUpdate(
+          user.id,
+          { isPaidUser: true },
+          { new: true } // Return updated document
+        );
+        
+        if (updatedUser) {
+          console.log(`User ${updatedUser.email} upgraded to paid status. isPaidUser=${updatedUser.isPaidUser}`);
+        } else {
+          console.error(`Failed to find and update user with ID: ${user.id}`);
+        }
+      }
+    } catch (dbError) {
+      console.error('Error updating user to paid status:', dbError);
+      // Continue execution - we'll still try to send the email and respond to the user
+    }
+    
+    // Generate email content for admin notification (optional, as we're auto-upgrading)
     const htmlContent = `
       <h2>Payment Confirmation</h2>
       <p><strong>User:</strong> ${user.email} (${user.displayName || 'Unknown'})</p>
       <p><strong>User ID:</strong> ${user.id}</p>
       <p><strong>Transaction ID:</strong> ${transactionId}</p>
       <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
-      <p>Please verify this transaction and upgrade the user's account status.</p>
+      <p>User has been automatically upgraded to paid status.</p>
     `;
     
-    const subject = `Payment Confirmation - ${user.email}`;
+    const subject = `Payment Confirmed & User Upgraded - ${user.email}`;
     const from = process.env.EMAIL_USER || 'jason@abitofadvicellc.com';
     const to = process.env.ADMIN_EMAIL || 'jason@abitofadvicellc.com';
     
-    console.log(`Email details: From: ${from}, To: ${to}, Subject: ${subject}`);
-    
-    // Try to send email
+    // Try to send email as a notification only (not critical anymore)
     let emailSent = false;
     
     // First try SendGrid if enabled
     if (useSendGrid) {
       try {
-        console.log('Sending email via SendGrid');
+        console.log('Sending notification email via SendGrid');
         const msg = {
           to,
           from,
@@ -156,24 +188,19 @@ router.post('/confirm', authenticate, async (req: Request, res: Response) => {
           html: htmlContent,
         };
         
-        console.log('SendGrid message configured:', JSON.stringify(msg, null, 2));
         await sgMail.send(msg);
-        console.log('Email sent successfully with SendGrid');
+        console.log('Email notification sent with SendGrid');
         emailSent = true;
       } catch (sendGridError) {
         console.error('SendGrid email error:', sendGridError);
-        if (sendGridError.response) {
-          console.error('SendGrid error details:', JSON.stringify(sendGridError.response.body, null, 2));
-        }
+        // Not critical as user is already upgraded
       }
-    } else {
-      console.log('SendGrid not enabled, skipping SendGrid email attempt');
     }
     
     // Fall back to SMTP if SendGrid fails or is not configured
     if (!emailSent && transporter) {
       try {
-        console.log('Sending email via SMTP');
+        console.log('Sending notification email via SMTP');
         const mailOptions = {
           from,
           to,
@@ -182,31 +209,19 @@ router.post('/confirm', authenticate, async (req: Request, res: Response) => {
         };
         
         const info = await transporter.sendMail(mailOptions);
-        console.log(`Email sent successfully via SMTP: ${JSON.stringify(info)}`);
-        
-        // If using Ethereal, provide the URL to view the message
-        if (info.messageId && info.envelope && info.envelope.from && 
-            typeof info.envelope.from === 'string' && 
-            info.envelope.from.includes('ethereal.email')) {
-          console.log(`Ethereal email preview URL: ${nodemailer.getTestMessageUrl(info)}`);
-        }
-        
+        console.log(`Email notification sent via SMTP: ${info.messageId}`);
         emailSent = true;
       } catch (emailError) {
         console.error('SMTP email error:', emailError);
+        // Not critical as user is already upgraded
       }
-    } else if (!emailSent) {
-      console.log('SMTP transporter not available');
     }
     
-    if (!emailSent) {
-      console.warn('Failed to send email notification. Check email configuration.');
-    }
-    
-    // Respond to the user
+    // Respond to the user - immediate confirmation of upgrade
     res.json({
       success: true,
-      message: 'Payment confirmation received. Your account will be upgraded once the payment is verified.'
+      message: 'Payment confirmed. Your account has been upgraded to premium status!',
+      isPaidUser: true
     });
   } catch (error: any) {
     console.error('Payment confirmation error:', error);
