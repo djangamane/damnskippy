@@ -2,20 +2,8 @@ services:
   - type: web
     name: skipthegames4ai
     env: node
-    buildCommand: |
-      npm ci
-      rm -rf dist
-      npm run build
-      npm run build:server
-      mkdir -p dist/server
-      cp -r server/*.js dist/server/
-      cp -r server/*.ts dist/server/
-      cp package*.json dist/
-      cd dist && npm ci --production --ignore-scripts
-      ls -la dist/server || true
-      pwd
-      find . -type f || true
-    startCommand: node server/index.js
+    buildCommand: npm run render-build
+    startCommand: node dist/server/index.js
     envVars:
       - key: NODE_ENV
         value: production

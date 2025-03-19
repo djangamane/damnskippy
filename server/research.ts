@@ -4,11 +4,20 @@ import OpenAI from 'openai';
 const router = Router();
 
 // Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai: OpenAI | null = null;
 
-console.log('OpenAI client initialized successfully');
+try {
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('WARNING: OPENAI_API_KEY environment variable is not set. Research functionality will be limited.');
+  } else {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+    console.log('OpenAI client initialized successfully');
+  }
+} catch (error) {
+  console.error('Failed to initialize OpenAI client:', error);
+}
 
 interface ResearchError extends Error {
   status?: number;
@@ -16,6 +25,10 @@ interface ResearchError extends Error {
 
 async function performResearch(query: string): Promise<string> {
   try {
+    if (!openai) {
+      throw new Error("OpenAI client is not initialized. Please check your API key configuration.");
+    }
+
     console.log('Performing research with OpenAI for:', query);
 
     const completion = await openai.chat.completions.create({

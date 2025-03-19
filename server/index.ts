@@ -29,10 +29,15 @@ const port = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(join(dirname(__dirname))));
-}
+// Determine static file path
+const staticPath = process.env.NODE_ENV === 'production'
+  ? join(dirname(__dirname))  // In production, static files are at the dist root
+  : join(dirname(dirname(__dirname)), 'dist'); // In dev, they're in the project root's dist
+
+console.log(`Serving static files from: ${staticPath}`);
+
+// Serve static files
+app.use(express.static(staticPath));
 
 // API routes
 app.use('/api', apiRouter);
@@ -42,12 +47,12 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Serve index.html for client-side routing in production
-if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    res.sendFile(join(dirname(__dirname), 'index.html'));
-  });
-}
+// Serve index.html for client-side routing
+app.get('*', (req, res) => {
+  const indexPath = join(staticPath, 'index.html');
+  console.log(`Serving index.html from: ${indexPath}`);
+  res.sendFile(indexPath);
+});
 
 // Start server
 const startServer = async () => {
@@ -55,6 +60,8 @@ const startServer = async () => {
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
       console.log(`Environment: ${process.env.NODE_ENV}`);
+      console.log(`Working directory: ${process.cwd()}`);
+      console.log(`__dirname: ${__dirname}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
