@@ -1,29 +1,13 @@
 // Test MongoDB connection
-import { MongoClient } from 'mongodb';
-import dotenv from 'dotenv';
-import fs from 'fs';
+const { MongoClient } = require('mongodb');
 
-// Load environment variables from multiple files
-dotenv.config({ path: '.env' });
-if (fs.existsSync('.env.server')) {
-  dotenv.config({ path: '.env.server' });
-}
+// MongoDB Connection URI
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://janga:busseja@janga0.f5z2f6j.mongodb.net/damnskippy?retryWrites=true&w=majority';
 
 async function testConnection() {
-  // Use the environment variable for MongoDB connection string
-  const uri = process.env.MONGODB_URI || process.env.VITE_MONGODB_URI;
+  console.log('Testing MongoDB connection with URI:', MONGODB_URI.replace(/:[^:]*@/, ':****@'));
   
-  console.log('Testing MongoDB connection with URI:', uri ? 'URI is set (hidden for security)' : 'URI not found!');
-  
-  if (!uri) {
-    console.error('No MongoDB URI found in environment variables!');
-    console.error('Available environment variables:', Object.keys(process.env).filter(key => 
-      key.includes('MONGO') || key.includes('DB')
-    ));
-    return;
-  }
-  
-  const client = new MongoClient(uri);
+  const client = new MongoClient(MONGODB_URI);
   
   try {
     console.log('Attempting to connect to MongoDB...');
@@ -36,13 +20,17 @@ async function testConnection() {
     console.log(dbList.databases.map(db => db.name).join(', '));
     
     // Try connecting to the specific database
-    const db = client.db('skipthegames4ai');
+    const db = client.db('damnskippy');
     console.log('Connected to database:', db.databaseName);
     
     // List collections
     const collections = await db.listCollections().toArray();
     console.log('Available collections:');
-    console.log(collections.map(col => col.name).join(', '));
+    if (collections.length === 0) {
+      console.log('No collections found. This might be a new database.');
+    } else {
+      console.log(collections.map(col => col.name).join(', '));
+    }
     
   } catch (error) {
     console.error('Failed to connect to MongoDB:', error);
@@ -52,4 +40,4 @@ async function testConnection() {
   }
 }
 
-testConnection().catch(console.error); 
+testConnection().catch(console.error);

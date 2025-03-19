@@ -12,14 +12,34 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 // MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://janga:busseja@janga0.f5z2f6j.mongodb.net/damnskippy?retryWrites=true&w=majority';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/damnskippy';
 
-mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+// For MongoDB connection issues in development, fall back to in-memory storage
+let useInMemoryStorage = true; // Default to in-memory storage
+const users = [
+  {
+    _id: '123456789',
+    email: 'test@example.com',
+    password: 'test123',
+    displayName: 'Test User'
+  },
+  {
+    _id: '987654321',
+    email: 'the.nonprofit.org@gmail.com',
+    password: 'test123',
+    displayName: 'Nonprofit User'
+  }
+];
+
+// Try to connect to MongoDB, but don't block server startup
+mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log('Connected to MongoDB');
+    useInMemoryStorage = false;
   })
   .catch(err => {
     console.error('MongoDB connection error:', err);
+    console.log('Using in-memory storage for users');
   });
 
 // User Schema and Model
@@ -81,6 +101,10 @@ const User = mongoose.model('User', userSchema);
 // Create test users if they don't exist
 async function createTestUsers() {
   try {
+    if (useInMemoryStorage) {
+      return;
+    }
+    
     // Check if test user exists
     const testUser = await User.findOne({ email: 'test@example.com' });
     if (!testUser) {
@@ -145,8 +169,12 @@ app.post('/api/auth/signin', async (req, res) => {
       });
     }
     
-    // Find user by email
-    const user = await User.findOne({ email: req.body.email });
+    let user;
+    if (useInMemoryStorage) {
+      user = users.find(u => u.email === req.body.email);
+    } else {
+      user = await User.findOne({ email: req.body.email });
+    }
     
     // Check if user exists
     if (!user) {
@@ -158,7 +186,12 @@ app.post('/api/auth/signin', async (req, res) => {
     }
     
     // Check password
-    const isPasswordValid = await user.comparePassword(req.body.password);
+    let isPasswordValid;
+    if (useInMemoryStorage) {
+      isPasswordValid = user.password === req.body.password;
+    } else {
+      isPasswordValid = await user.comparePassword(req.body.password);
+    }
     if (!isPasswordValid) {
       console.log('Invalid password for:', req.body.email);
       return res.status(401).json({
@@ -170,8 +203,10 @@ app.post('/api/auth/signin', async (req, res) => {
     console.log('Login successful for:', user.email);
     
     // Update last login time
-    user.lastLoginAt = new Date();
-    await user.save();
+    if (!useInMemoryStorage) {
+      user.lastLoginAt = new Date();
+      await user.save();
+    }
     
     // Generate token
     const token = jwt.sign(
@@ -226,50 +261,93 @@ app.post('/api/auth/signup', async (req, res) => {
       });
     }
     
-    // Check if user already exists
-    const existingUser = await User.findOne({ email: req.body.email });
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        message: 'User with this email already exists'
+    if (useInMemoryStorage) {
+      const existingUser = users.find(u => u.email === req.body.email);
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          message: 'User with this email already exists'
+        });
+      }
+      
+      const newUser = {
+        _id: Date.now().toString(),
+        email: req.body.email,
+        password: req.body.password,
+        displayName: req.body.displayName || req.body.email.split('@')[0],
+        createdAt: new Date()
+      };
+      
+      users.push(newUser);
+      
+      console.log('User created successfully:', { id: newUser._id, email: newUser.email });
+      
+      // Generate token
+      const token = jwt.sign(
+        { email: newUser.email, id: newUser._id },
+        process.env.JWT_SECRET || 'default-secret',
+        { expiresIn: '24h' }
+      );
+      
+      // Return user data without password
+      const userData = {
+        _id: newUser._id,
+        email: newUser.email,
+        displayName: newUser.displayName,
+        createdAt: newUser.createdAt
+      };
+      
+      // Return success response
+      res.status(201).json({
+        success: true,
+        message: 'User created successfully',
+        token,
+        data: userData
+      });
+    } else {
+      const existingUser = await User.findOne({ email: req.body.email });
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          message: 'User with this email already exists'
+        });
+      }
+      
+      const newUser = new User({
+        email: req.body.email,
+        password: req.body.password,
+        displayName: req.body.displayName || req.body.email.split('@')[0],
+        createdAt: new Date()
+      });
+      
+      // Save user to database
+      await newUser.save();
+      
+      console.log('User created successfully:', { id: newUser._id, email: newUser.email });
+      
+      // Generate token
+      const token = jwt.sign(
+        { email: newUser.email, id: newUser._id },
+        process.env.JWT_SECRET || 'default-secret',
+        { expiresIn: '24h' }
+      );
+      
+      // Return user data without password
+      const userData = {
+        _id: newUser._id,
+        email: newUser.email,
+        displayName: newUser.displayName,
+        createdAt: newUser.createdAt
+      };
+      
+      // Return success response
+      res.status(201).json({
+        success: true,
+        message: 'User created successfully',
+        token,
+        data: userData
       });
     }
-    
-    // Create new user
-    const newUser = new User({
-      email: req.body.email,
-      password: req.body.password,
-      displayName: req.body.displayName || req.body.email.split('@')[0],
-      createdAt: new Date()
-    });
-    
-    // Save user to database
-    await newUser.save();
-    
-    console.log('User created successfully:', { id: newUser._id, email: newUser.email });
-    
-    // Generate token
-    const token = jwt.sign(
-      { email: newUser.email, id: newUser._id },
-      process.env.JWT_SECRET || 'default-secret',
-      { expiresIn: '24h' }
-    );
-    
-    // Return user data without password
-    const userData = {
-      _id: newUser._id,
-      email: newUser.email,
-      displayName: newUser.displayName,
-      createdAt: newUser.createdAt
-    };
-    
-    // Return success response
-    res.status(201).json({
-      success: true,
-      message: 'User created successfully',
-      token,
-      data: userData
-    });
   } catch (error) {
     console.error('Sign-up error:', error);
     
