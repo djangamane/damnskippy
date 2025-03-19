@@ -252,15 +252,15 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Set server-wide timeout values
-app.timeout = 180000; // 3 minutes
+app.timeout = 300000; // 5 minutes
 
 // Increase server timeout for long-running requests
 app.use((req, res, next) => {
   // Set timeouts at the request level
-  req.setTimeout(180000); // 3 minutes
-  res.setTimeout(180000); // 3 minutes
-  req.socket.setTimeout(180000); // 3 minutes
-  console.log('Set request timeout to 3 minutes');
+  req.setTimeout(300000); // 5 minutes
+  res.setTimeout(300000); // 5 minutes
+  req.socket.setTimeout(300000); // 5 minutes
+  console.log('Set request timeout to 5 minutes');
   next();
 });
 
@@ -696,10 +696,10 @@ app.get('*', (req, res) => {
 const http = require('http');
 const server = http.createServer(app);
 
-// Set server-wide timeout (3 minutes = 180000ms)
-server.timeout = 180000; // 3 minutes
-server.keepAliveTimeout = 180000; // 3 minutes
-server.headersTimeout = 180000; // 3 minutes
+// Set server-wide timeout (5 minutes = 300000ms)
+server.timeout = 300000; // 5 minutes
+server.keepAliveTimeout = 300000; // 5 minutes
+server.headersTimeout = 300000; // 5 minutes
 
 // Start the server
 server.listen(port, () => {
