@@ -24,7 +24,7 @@ router.get('/history', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    const threads = await global.ResearchThread.find({ userId: decoded.id })
+    const threads = await global.ResearchThread.find({ userId: decoded.id.toString() })
       .sort({ timestamp: -1 })
       .limit(50);
     
@@ -51,7 +51,7 @@ router.get('/thread/:id', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    if (thread.userId !== decoded.id) {
+    if (thread.userId !== decoded.id.toString()) {
       return res.status(403).json({ error: 'Unauthorized access to thread' });
     }
     
@@ -100,7 +100,7 @@ router.post('/', async (req, res) => {
     
     // Save the research thread
     const thread = await global.ResearchThread.create({
-      userId: decoded.id,
+      userId: decoded.id.toString(),
       query,
       result
     });
