@@ -8,10 +8,37 @@ import { apiRouter } from './routes.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Set up paths based on environment
+let staticPath = '';
+let currentPath = '';
+
+// Determine if we're in Render's environment
+const isRender = process.env.RENDER === 'true' || process.env.IS_RENDER === 'true';
+
+// Log working directory and file path for debugging
+console.log('Working directory:', process.cwd());
+console.log('__dirname:', __dirname);
+console.log('Is Render environment:', isRender);
+
+// Configure paths based on environment
+if (isRender) {
+  // In Render, static files are at /opt/render/project/src/dist
+  staticPath = join('/opt/render/project/src/dist');
+  currentPath = join('/opt/render/project/src');
+} else if (process.env.NODE_ENV === 'production') {
+  // In other production environments
+  staticPath = join(dirname(__dirname));
+  currentPath = join(dirname(dirname(__dirname)));
+} else {
+  // In development
+  staticPath = join(dirname(dirname(__dirname)), 'dist');
+  currentPath = dirname(dirname(__dirname));
+}
+
 // Load environment variables
 const envPath = process.env.NODE_ENV === 'production' 
-  ? join(__dirname, '.env')
-  : join(dirname(dirname(__dirname)), '.env.server');
+  ? join(currentPath, '.env')
+  : join(currentPath, '.env.server');
 
 config({ path: envPath });
 
@@ -21,6 +48,7 @@ console.log('Environment variables status:', {
   MONGODB_URI: process.env.MONGODB_URI ? 'Present' : 'Not present',
   JWT_SECRET: process.env.JWT_SECRET ? 'Present' : 'Not present'
 });
+console.log(`Static files will be served from: ${staticPath}`);
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -28,13 +56,6 @@ const port = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
-
-// Determine static file path
-const staticPath = process.env.NODE_ENV === 'production'
-  ? join(dirname(__dirname))  // In production, static files are at the dist root
-  : join(dirname(dirname(__dirname)), 'dist'); // In dev, they're in the project root's dist
-
-console.log(`Serving static files from: ${staticPath}`);
 
 // Serve static files
 app.use(express.static(staticPath));

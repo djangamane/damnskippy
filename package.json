@@ -13,6 +13,7 @@
     "build:full": "npm run clean && npm run build && npm run build:server",
     "clean": "node -e \"if (require('fs').existsSync('dist')) require('fs').rmSync('dist', { recursive: true, force: true })\"",
     "render-build": "npm ci && npm run clean && npm run build && npm run build:server && node -e \"console.log('Build completed, directory listing:'); console.log(require('fs').readdirSync('dist'))\"",
+    "render-start": "IS_RENDER=true node dist/server/index.js",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },

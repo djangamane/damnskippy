@@ -3,12 +3,13 @@ import OpenAI from 'openai';
 
 const router = Router();
 
-// Initialize OpenAI client
+// Initialize OpenAI client with error handling
 let openai: OpenAI | null = null;
 
 try {
+  console.log("Initializing OpenAI client...");
   if (!process.env.OPENAI_API_KEY) {
-    console.warn('WARNING: OPENAI_API_KEY environment variable is not set. Research functionality will be limited.');
+    console.warn('WARNING: OPENAI_API_KEY environment variable is missing or empty. Research functionality will be disabled.');
   } else {
     openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
@@ -74,6 +75,15 @@ const handleResearch: RequestHandler = async (req, res, next) => {
         success: false,
         error: 'Missing query parameter',
         message: 'Please provide a search query'
+      });
+      return;
+    }
+
+    if (!openai) {
+      res.status(503).json({
+        success: false,
+        error: 'Service Unavailable',
+        message: 'The research service is currently unavailable due to configuration issues. Please try again later.'
       });
       return;
     }
