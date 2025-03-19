@@ -94,51 +94,6 @@ const Login = () => {
     if (error) setError('');
   };
 
-  const testDirectLogin = async () => {
-    // Use the test account credentials directly
-    const testEmail = 'test@example.com';
-    const testPassword = 'test123';
-    
-    setLoading(true);
-    setError('');
-    console.log('Testing direct login with test account');
-    
-    try {
-      // First, try fetch API
-      console.log('Attempting fetch API login');
-      const fetchResponse = await fetch('https://damnskippy.onrender.com/api/auth/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: testEmail,
-          password: testPassword
-        })
-      });
-      
-      const fetchData = await fetchResponse.json();
-      console.log('Fetch API login result:', {
-        status: fetchResponse.status,
-        success: fetchResponse.ok,
-        hasData: !!fetchData
-      });
-      
-      if (fetchResponse.ok && fetchData) {
-        console.log('Direct test login successful!');
-        setError('Test login successful! The API is working correctly.');
-      } else {
-        console.error('Direct test login failed with fetch API');
-        setError('Test login failed. API error: ' + (fetchData?.error || 'Unknown error'));
-      }
-    } catch (err) {
-      console.error('Error in direct test login:', err);
-      setError('Test login network error: ' + (err instanceof Error ? err.message : 'Unknown error'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">
       <div className="bg-gray-900 p-8 rounded-lg shadow-lg w-96">
@@ -212,30 +167,16 @@ const Login = () => {
             {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </button>
         </div>
-        <div className="mt-4 text-center text-gray-400 text-sm">
-          <p>Test account: test@example.com / test123</p>
-        </div>
         
         {/* Debug information */}
         {debug.lastAttempt && (
           <div className="mt-4 text-xs text-gray-500">
-            Last attempt: {debug.lastAttempt.email} at {debug.lastAttempt.time} (#{debug.lastAttempt.count})
+            Last attempt: {debug.lastAttempt.email} at {debug.lastAttempt.timestamp} (#{debug.submitCount})
           </div>
         )}
-        
-        {/* Test API Button */}
-        <div className="mt-4 text-center">
-          <button
-            onClick={testDirectLogin}
-            disabled={loading}
-            className="text-xs text-gray-400 hover:text-cyan-400"
-          >
-            Test API Directly
-          </button>
-        </div>
       </div>
     </div>
   );
 };
 
-export default Login; 
+export default Login;
