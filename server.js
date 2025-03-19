@@ -9,6 +9,23 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const port = process.env.PORT || 3001;
 
+// In-memory user storage (for demonstration purposes)
+// In a production app, this would be a database
+const users = [
+  {
+    _id: '123456789',
+    email: 'test@example.com',
+    password: 'test123', // In a real app, this would be hashed
+    displayName: 'Test User'
+  },
+  {
+    _id: '987654321',
+    email: 'the.nonprofit.org@gmail.com',
+    password: 'test123', // In a real app, this would be hashed
+    displayName: 'Nonprofit User'
+  }
+];
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -31,57 +48,36 @@ app.get('/api/hello', (req, res) => {
 });
 
 // Authentication endpoints
-// Test account credentials
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'test123';
-
 // Sign in route
 app.post('/api/auth/signin', (req, res) => {
   try {
     console.log('Sign-in request received:', { email: req.body.email, password: '[REDACTED]' });
     
-    // Check test account credentials
-    if (req.body.email === TEST_EMAIL && req.body.password === TEST_PASSWORD) {
-      console.log('Test account login successful');
-      
-      const token = jwt.sign(
-        { email: TEST_EMAIL },
-        process.env.JWT_SECRET || 'default-secret',
-        { expiresIn: '24h' }
-      );
-
-      console.log('Sending successful response with token and user data');
-      res.json({
-        success: true,
-        token,
-        data: {
-          _id: '123456789',
-          email: TEST_EMAIL,
-          displayName: 'Test User'
-        }
-      });
-      return;
-    }
+    // Find user by email
+    const user = users.find(u => u.email === req.body.email);
     
-    // Also accept the nonprofit email from the login page
-    if (req.body.email === 'the.nonprofit.org@gmail.com' && req.body.password === TEST_PASSWORD) {
-      console.log('Nonprofit account login successful');
+    // Check if user exists and password matches
+    if (user && user.password === req.body.password) {
+      console.log('Login successful for:', user.email);
       
       const token = jwt.sign(
-        { email: 'the.nonprofit.org@gmail.com' },
+        { email: user.email, id: user._id },
         process.env.JWT_SECRET || 'default-secret',
         { expiresIn: '24h' }
       );
+
+      // Return user data without password
+      const userData = {
+        _id: user._id,
+        email: user.email,
+        displayName: user.displayName
+      };
 
       console.log('Sending successful response with token and user data');
       res.json({
         success: true,
         token,
-        data: {
-          _id: '987654321',
-          email: 'the.nonprofit.org@gmail.com',
-          displayName: 'Nonprofit User'
-        }
+        data: userData
       });
       return;
     }
@@ -123,35 +119,55 @@ app.post('/api/auth/signup', (req, res) => {
       });
     }
     
-    // In a real app, we would check if the user already exists
-    // and hash the password before storing it in the database
+    // Check if user already exists
+    const existingUser = users.find(u => u.email === req.body.email);
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
     
     // For demonstration purposes, we'll create a new user with a random ID
     const userId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     
     // Create user object
-    const user = {
+    const newUser = {
       _id: userId,
       email: req.body.email,
+      password: req.body.password, // In a real app, this would be hashed
       displayName: req.body.displayName || req.body.email.split('@')[0],
       createdAt: new Date().toISOString()
     };
     
+    // Add user to our in-memory storage
+    users.push(newUser);
+    
+    console.log('New user added to in-memory storage. Total users:', users.length);
+    
     // Generate token
     const token = jwt.sign(
-      { email: user.email, id: user._id },
+      { email: newUser.email, id: newUser._id },
       process.env.JWT_SECRET || 'default-secret',
       { expiresIn: '24h' }
     );
     
-    console.log('User created successfully:', { userId, email: user.email });
+    console.log('User created successfully:', { userId, email: newUser.email });
+    
+    // Return user data without password
+    const userData = {
+      _id: newUser._id,
+      email: newUser.email,
+      displayName: newUser.displayName,
+      createdAt: newUser.createdAt
+    };
     
     // Return success response
     res.status(201).json({
       success: true,
       message: 'User created successfully',
       token,
-      data: user
+      data: userData
     });
   } catch (error) {
     console.error('Sign-up error:', error);
