@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -31,6 +31,14 @@ function App() {
             element={
               <PrivateRoute>
                 <ResearchEngine />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/research/:id"
+            element={
+              <PrivateRoute>
+                <Navigate to="/research" replace />
               </PrivateRoute>
             }
           />
