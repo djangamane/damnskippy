@@ -16,7 +16,7 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 // For MongoDB connection issues in development, fall back to in-memory storage
-let useInMemoryStorage = true; // Default to in-memory storage
+let useInMemoryStorage = false; // Start with MongoDB as default
 const users = [
   {
     _id: '123456789',
@@ -32,219 +32,232 @@ const users = [
   }
 ];
 
-// Try to connect to MongoDB, but don't block server startup
-try {
-  console.log('Attempting to connect to MongoDB...');
-  mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://janga:busseja@janga0.f5z2f6j.mongodb.net/damnskippy?retryWrites=true&w=majority', {
-    // These options help with connection issues
-    connectTimeoutMS: 30000,
-    socketTimeoutMS: 45000,
-    serverSelectionTimeoutMS: 60000,
-  })
-    .then(() => {
-      console.log('Connected to MongoDB successfully');
-      console.log('Database:', mongoose.connection.db.databaseName);
-      console.log('MongoDB connection state:', mongoose.connection.readyState);
-      useInMemoryStorage = false;
-      
-      // User Schema and Model
-      const userSchema = new mongoose.Schema({
-        email: { 
-          type: String, 
-          required: true, 
-          unique: true,
-          trim: true,
-          lowercase: true
-        },
-        password: { 
-          type: String, 
-          required: true 
-        },
-        displayName: { 
-          type: String, 
-          default: function() {
-            return this.email.split('@')[0];
-          }
-        },
-        isPaidUser: {
-          type: Boolean,
-          default: false
-        },
-        createdAt: { 
-          type: Date, 
-          default: Date.now 
-        },
-        lastLoginAt: { 
-          type: Date 
-        }
-      });
-      
-      // Pre-save hook to hash password
-      userSchema.pre('save', async function(next) {
-        // Only hash the password if it's modified (or new)
-        if (!this.isModified('password')) return next();
-        
-        try {
-          // Generate a salt
-          const salt = await bcrypt.genSalt(10);
-          // Hash the password along with the new salt
-          this.password = await bcrypt.hash(this.password, salt);
-          next();
-        } catch (error) {
-          next(error);
-        }
-      });
-      
-      // Method to compare passwords
-      userSchema.methods.comparePassword = async function(candidatePassword) {
-        try {
-          return await bcrypt.compare(candidatePassword, this.password);
-        } catch (error) {
-          throw error;
-        }
-      };
-      
-      // Create the User model
-      const User = mongoose.model('User', userSchema);
-      
-      // Create test users if they don't exist
-      async function createTestUsers() {
-        try {
-          // Check if test user exists
-          const testUser = await User.findOne({ email: 'test@example.com' });
-          if (!testUser) {
-            await User.create({
-              email: 'test@example.com',
-              password: 'test123',
-              displayName: 'Test User'
-            });
-            console.log('Created test user');
-          }
-          
-          // Check if nonprofit user exists
-          const nonprofitUser = await User.findOne({ email: 'the.nonprofit.org@gmail.com' });
-          if (!nonprofitUser) {
-            await User.create({
-              email: 'the.nonprofit.org@gmail.com',
-              password: 'test123',
-              displayName: 'Nonprofit User'
-            });
-            console.log('Created nonprofit user');
-          }
-        } catch (error) {
-          console.error('Error creating test users:', error);
-        }
+// Try to connect to MongoDB
+console.log('Attempting to connect to MongoDB...');
+mongoose.connect(process.env.MONGODB_URI, {
+  // These options help with connection issues
+  connectTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+  serverSelectionTimeoutMS: 60000,
+})
+.then(() => {
+  console.log('Connected to MongoDB successfully');
+  console.log('Database:', mongoose.connection.db.databaseName);
+  console.log('MongoDB connection state:', mongoose.connection.readyState);
+  
+  // User Schema and Model
+  const userSchema = new mongoose.Schema({
+    email: { 
+      type: String, 
+      required: true, 
+      unique: true,
+      trim: true,
+      lowercase: true
+    },
+    password: { 
+      type: String, 
+      required: true 
+    },
+    displayName: { 
+      type: String, 
+      default: function() {
+        return this.email.split('@')[0];
+      }
+    },
+    isPaidUser: {
+      type: Boolean,
+      default: false
+    },
+    createdAt: { 
+      type: Date, 
+      default: Date.now 
+    },
+    lastLoginAt: { 
+      type: Date 
+    }
+  });
+  
+  // Pre-save hook to hash password
+  userSchema.pre('save', async function(next) {
+    // Only hash the password if it's modified (or new)
+    if (!this.isModified('password')) return next();
+    
+    try {
+      // Generate a salt
+      const salt = await bcrypt.genSalt(10);
+      // Hash the password along with the new salt
+      this.password = await bcrypt.hash(this.password, salt);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Method to compare passwords
+  userSchema.methods.comparePassword = async function(candidatePassword) {
+    try {
+      return await bcrypt.compare(candidatePassword, this.password);
+    } catch (error) {
+      throw error;
+    }
+  };
+  
+  // Create the User model
+  const User = mongoose.model('User', userSchema);
+  
+  // Create test users if they don't exist
+  async function createTestUsers() {
+    try {
+      // Check if test user exists
+      const testUser = await User.findOne({ email: 'test@example.com' });
+      if (!testUser) {
+        await User.create({
+          email: 'test@example.com',
+          password: 'test123',
+          displayName: 'Test User'
+        });
+        console.log('Created test user');
       }
       
-      // Call the function to create test users
-      createTestUsers();
-      
-      // Export the User model for use in routes
-      global.User = User;
-      
-      // Load our models
-      try {
-        // Import and register Research Thread model
-        const ResearchThreadSchema = new mongoose.Schema({
-          userId: {
-            type: String,
-            required: true,
-            index: true
-          },
-          query: {
-            type: String,
-            required: true
-          },
-          result: {
-            type: String,
-            required: true
-          },
-          timestamp: {
-            type: Date,
-            default: Date.now
-          },
-          tags: {
-            type: [String],
-            default: []
-          }
+      // Check if nonprofit user exists
+      const nonprofitUser = await User.findOne({ email: 'the.nonprofit.org@gmail.com' });
+      if (!nonprofitUser) {
+        await User.create({
+          email: 'the.nonprofit.org@gmail.com',
+          password: 'test123',
+          displayName: 'Nonprofit User'
         });
-        
-        global.ResearchThread = mongoose.model('ResearchThread', ResearchThreadSchema);
-        
-        // Import and register Custom Workflow model
-        const WorkflowStepSchema = new mongoose.Schema({
-          title: {
-            type: String,
-            required: true
-          },
-          description: {
-            type: String,
-            required: true
-          },
-          order: {
-            type: Number,
-            required: true
-          },
-          isCompleted: {
-            type: Boolean,
-            default: false
-          }
-        });
-        
-        const CustomWorkflowSchema = new mongoose.Schema({
-          userId: {
-            type: String,
-            required: true,
-            index: true
-          },
-          name: {
-            type: String,
-            required: true
-          },
-          description: {
-            type: String,
-            required: true
-          },
-          steps: {
-            type: [WorkflowStepSchema],
-            default: []
-          },
-          status: {
-            type: String,
-            enum: ['active', 'draft', 'archived'],
-            default: 'draft'
-          },
-          createdAt: {
-            type: Date,
-            default: Date.now
-          },
-          updatedAt: {
-            type: Date,
-            default: Date.now
-          }
-        });
-        
-        // Update timestamp on save
-        CustomWorkflowSchema.pre('save', function(next) {
-          this.updatedAt = new Date();
-          next();
-        });
-        
-        global.CustomWorkflow = mongoose.model('CustomWorkflow', CustomWorkflowSchema);
-        
-        console.log('All models loaded successfully');
-      } catch (modelError) {
-        console.error('Error loading models:', modelError);
+        console.log('Created nonprofit user');
       }
-    })
-    .catch(err => {
-      console.error('MongoDB connection error:', err);
-      console.log('Using in-memory storage for users');
+    } catch (error) {
+      console.error('Error creating test users:', error);
+    }
+  }
+  
+  // Call the function to create test users
+  createTestUsers();
+  
+  // Export the User model for use in routes
+  global.User = User;
+  
+  // Load our models
+  try {
+    // Import and register Research Thread model
+    const ResearchThreadSchema = new mongoose.Schema({
+      userId: {
+        type: String,
+        required: true,
+        index: true
+      },
+      query: {
+        type: String,
+        required: true
+      },
+      result: {
+        type: String,
+        required: true
+      },
+      timestamp: {
+        type: Date,
+        default: Date.now
+      },
+      tags: {
+        type: [String],
+        default: []
+      }
     });
-} catch (error) {
-  console.error('Error loading MongoDB modules:', error.message);
-  console.log('Using in-memory storage for users');
-}
+    
+    global.ResearchThread = mongoose.model('ResearchThread', ResearchThreadSchema);
+    
+    // Import and register Custom Workflow model
+    const WorkflowStepSchema = new mongoose.Schema({
+      title: {
+        type: String,
+        required: true
+      },
+      description: {
+        type: String,
+        required: true
+      },
+      order: {
+        type: Number,
+        required: true
+      },
+      isCompleted: {
+        type: Boolean,
+        default: false
+      }
+    });
+    
+    const CustomWorkflowSchema = new mongoose.Schema({
+      userId: {
+        type: String,
+        required: true,
+        index: true
+      },
+      name: {
+        type: String,
+        required: true
+      },
+      description: {
+        type: String,
+        required: true
+      },
+      steps: {
+        type: [WorkflowStepSchema],
+        default: []
+      },
+      status: {
+        type: String,
+        enum: ['active', 'draft', 'archived'],
+        default: 'draft'
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      },
+      updatedAt: {
+        type: Date,
+        default: Date.now
+      }
+    });
+    
+    // Update timestamp on save
+    CustomWorkflowSchema.pre('save', function(next) {
+      this.updatedAt = new Date();
+      next();
+    });
+    
+    global.CustomWorkflow = mongoose.model('CustomWorkflow', CustomWorkflowSchema);
+    
+    console.log('All models loaded successfully');
+  } catch (modelError) {
+    console.error('Error loading models:', modelError);
+  }
+})
+.catch(err => {
+  console.error('MongoDB connection error details:', {
+    name: err.name,
+    message: err.message,
+    code: err.code,
+    stack: err.stack
+  });
+  throw new Error('Failed to connect to MongoDB. Application cannot start without database connection.');
+});
+
+// Monitor for MongoDB connection issues
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error:', err);
+  throw new Error('Lost connection to MongoDB. Please check your database connection.');
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.error('MongoDB disconnected. Attempting to reconnect...');
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('MongoDB reconnected successfully');
+});
 
 // Middleware
 app.use(cors());
@@ -284,6 +297,10 @@ app.get('/api/hello', (req, res) => {
 // Authentication endpoints
 // Sign in route
 app.post('/api/auth/signin', async (req, res) => {
+  // Set a longer timeout specifically for signin
+  req.setTimeout(60000); // 1 minute
+  res.setTimeout(60000); // 1 minute
+
   try {
     console.log('Sign-in request received:', { email: req.body.email, password: '[REDACTED]' });
     
@@ -296,28 +313,36 @@ app.post('/api/auth/signin', async (req, res) => {
     }
     
     let user;
-    let isPasswordValid;
+    let isPasswordValid = false;
     
+    // Try MongoDB first
+    if (!useInMemoryStorage) {
+      try {
+        // Find user and select required fields only
+        user = await global.User.findOne(
+          { email: req.body.email.toLowerCase() },
+          'email password displayName isPaidUser createdAt lastLoginAt'
+        );
+        
+        if (user) {
+          isPasswordValid = await user.comparePassword(req.body.password);
+        }
+      } catch (dbError) {
+        console.error('Database error during signin:', dbError);
+        // Fall back to in-memory if database fails
+        useInMemoryStorage = true;
+      }
+    }
+    
+    // Fall back to in-memory storage if needed
     if (useInMemoryStorage) {
-      user = users.find(u => u.email === req.body.email);
+      user = users.find(u => u.email.toLowerCase() === req.body.email.toLowerCase());
       isPasswordValid = user && user.password === req.body.password;
-    } else {
-      user = await global.User.findOne({ email: req.body.email });
-      isPasswordValid = user && await user.comparePassword(req.body.password);
     }
     
-    // Check if user exists
-    if (!user) {
-      console.log('User not found:', req.body.email);
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-    
-    // Check password
-    if (!isPasswordValid) {
-      console.log('Invalid password for:', req.body.email);
+    // Check if user exists and password is valid
+    if (!user || !isPasswordValid) {
+      console.log('Invalid credentials for:', req.body.email);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -386,37 +411,62 @@ app.post('/api/auth/signup', async (req, res) => {
       });
     }
 
-    if (useInMemoryStorage) {
-      console.log('Using in-memory storage for signup');
-      return res.status(500).json({
-        success: false,
-        message: 'Server is in fallback mode. Please try again later.'
-      });
-    }
-
-    // Check if user already exists using the global User model
-    const existingUser = await global.User.findOne({ email: email.toLowerCase() });
-    console.log('Existing user check result:', existingUser ? 'User exists' : 'User does not exist');
+    let user;
     
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'An account with this email already exists'
-      });
+    if (!useInMemoryStorage) {
+      try {
+        // Check if user already exists using the global User model
+        const existingUser = await global.User.findOne({ email: email.toLowerCase() });
+        console.log('Existing user check result:', existingUser ? 'User exists' : 'User does not exist');
+        
+        if (existingUser) {
+          return res.status(400).json({
+            success: false,
+            message: 'An account with this email already exists'
+          });
+        }
+
+        // Create new user using the global User model
+        console.log('Creating new user with email:', email);
+        user = new global.User({
+          email: email.toLowerCase(),
+          password, // Password will be hashed by the pre-save hook
+          displayName: displayName || email.split('@')[0],
+          isPaidUser: false,
+          createdAt: new Date()
+        });
+
+        user = await user.save();
+        console.log('User saved successfully:', user._id);
+      } catch (dbError) {
+        console.error('Database error during signup:', dbError);
+        // Fall back to in-memory if database fails
+        useInMemoryStorage = true;
+      }
     }
 
-    // Create new user using the global User model
-    console.log('Creating new user with email:', email);
-    const user = new global.User({
-      email: email.toLowerCase(),
-      password, // Password will be hashed by the pre-save hook
-      displayName: displayName || email.split('@')[0],
-      isPaidUser: false,
-      createdAt: new Date()
-    });
+    // Fall back to in-memory storage if needed
+    if (useInMemoryStorage) {
+      // Check if user exists in memory
+      const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'An account with this email already exists'
+        });
+      }
 
-    const savedUser = await user.save();
-    console.log('User saved successfully:', savedUser._id);
+      // Create new user in memory
+      user = {
+        _id: Date.now().toString(),
+        email: email.toLowerCase(),
+        password, // Note: In memory storage doesn't hash passwords
+        displayName: displayName || email.split('@')[0],
+        isPaidUser: false,
+        createdAt: new Date()
+      };
+      users.push(user);
+    }
 
     // Generate token
     const token = jwt.sign(
