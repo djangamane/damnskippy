@@ -45,7 +45,9 @@ try {
     serverSelectionTimeoutMS: 60000,
   })
     .then(() => {
-      console.log('Connected to MongoDB');
+      console.log('Connected to MongoDB successfully');
+      console.log('Database:', mongoose.connection.db.databaseName);
+      console.log('MongoDB connection state:', mongoose.connection.readyState);
       useInMemoryStorage = false;
       
       // User Schema and Model
@@ -370,6 +372,79 @@ app.post('/api/auth/signout', (req, res) => {
   res.json({
     success: true
   });
+});
+
+// Sign up route
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { email, password, displayName } = req.body;
+    console.log('Signup attempt for email:', email);
+    console.log('MongoDB connection state:', mongoose.connection.readyState);
+    console.log('Using in-memory storage:', useInMemoryStorage);
+
+    // Validate request
+    if (!email || !password) {
+      console.log('Signup validation failed: missing email or password');
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await global.User.findOne({ email: email.toLowerCase() });
+    console.log('Existing user check result:', existingUser ? 'User exists' : 'User does not exist');
+    
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'An account with this email already exists'
+      });
+    }
+
+    // Create new user
+    console.log('Creating new user with email:', email);
+    const user = new global.User({
+      email: email.toLowerCase(),
+      password, // Password will be hashed by the pre-save hook
+      displayName: displayName || email.split('@')[0],
+      isPaidUser: false,
+      createdAt: new Date()
+    });
+
+    const savedUser = await user.save();
+    console.log('User saved successfully:', savedUser._id);
+
+    // Generate token
+    const token = jwt.sign(
+      { email: user.email, id: user._id },
+      process.env.JWT_SECRET || 'default-secret',
+      { expiresIn: '24h' }
+    );
+
+    // Return user data without password
+    const userData = {
+      _id: user._id,
+      email: user.email,
+      displayName: user.displayName,
+      isPaidUser: user.isPaidUser,
+      createdAt: user.createdAt
+    };
+
+    console.log('Signup successful, returning user data');
+    res.status(201).json({
+      success: true,
+      token,
+      data: userData
+    });
+  } catch (error) {
+    console.error('Sign-up error details:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error: ' + error.message
+    });
+  }
 });
 
 // Load research router to handle API requests
