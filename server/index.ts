@@ -53,12 +53,12 @@ app.use(express.static(staticPath));
 app.use('/api', apiRouter);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (req: any, res: any) => {
   res.json({ status: 'ok' });
 });
 
 // Serve index.html for client-side routing
-app.get('*', (req, res) => {
+app.get('*', (req: any, res: any) => {
   console.log(`Serving index.html from: ${currentPath}`);
   res.sendFile(currentPath);
 });
