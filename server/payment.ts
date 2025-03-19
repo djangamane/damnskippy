@@ -6,7 +6,7 @@ import sgMail from '@sendgrid/mail';
 const router = Router();
 
 // Configure email transport - multiple options
-let transporter: any;
+let transporter: any = null;
 let useSendGrid = process.env.USE_SENDGRID === 'true' && process.env.SENDGRID_API_KEY;
 
 // Setup SendGrid if API key is provided
@@ -45,13 +45,15 @@ if (!useSendGrid) {
       console.log(`Using SMTP host: ${process.env.SMTP_HOST || 'smtp.titan.email'} on port ${process.env.SMTP_PORT || '465'} with secure=${process.env.SMTP_SECURE || 'true'}`);
       
       // Verify the connection after setup (for Titan)
-      transporter.verify(function(error, success) {
-        if (error) {
-          console.error('Email transporter verification failed:', error);
-        } else {
-          console.log('Email server is ready to send messages');
-        }
-      });
+      if (transporter) {
+        transporter.verify(function(error, success) {
+          if (error) {
+            console.error('Email transporter verification failed:', error);
+          } else {
+            console.log('Email server is ready to send messages');
+          }
+        });
+      }
     } else {
       // Fallback to Ethereal for testing if no credentials provided
       console.log('No email credentials provided, creating test account with Ethereal');
@@ -69,13 +71,15 @@ if (!useSendGrid) {
           });
           
           // Verify the connection after creating test account
-          transporter.verify(function(error, success) {
-            if (error) {
-              console.error('Ethereal email verification failed:', error);
-            } else {
-              console.log('Ethereal email server is ready to send messages');
-            }
-          });
+          if (transporter) {
+            transporter.verify(function(error, success) {
+              if (error) {
+                console.error('Ethereal email verification failed:', error);
+              } else {
+                console.log('Ethereal email server is ready to send messages');
+              }
+            });
+          }
         }
       }).catch(err => {
         console.error('Failed to create test email account:', err);
@@ -93,17 +97,19 @@ router.post('/confirm', authenticate, async (req: Request, res: Response) => {
     const { transactionId } = req.body;
     
     if (!user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Authentication required'
       });
+      return;
     }
     
     if (!transactionId) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Transaction ID is required'
       });
+      return;
     }
     
     console.log(`Attempting to send email notification for user ${user.email} with transaction ${transactionId}`);
@@ -164,7 +170,9 @@ router.post('/confirm', authenticate, async (req: Request, res: Response) => {
         console.log(`Email sent successfully via SMTP: ${JSON.stringify(info)}`);
         
         // If using Ethereal, provide the URL to view the message
-        if (info.messageId && info.envelope && info.envelope.from && info.envelope.from.includes('ethereal.email')) {
+        if (info.messageId && info.envelope && info.envelope.from && 
+            typeof info.envelope.from === 'string' && 
+            info.envelope.from.includes('ethereal.email')) {
           console.log(`Ethereal email preview URL: ${nodemailer.getTestMessageUrl(info)}`);
         }
         
