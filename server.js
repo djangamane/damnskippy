@@ -4,27 +4,111 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
 
 // Initialize Express app
 const app = express();
 const port = process.env.PORT || 3001;
 
-// In-memory user storage (for demonstration purposes)
-// In a production app, this would be a database
-const users = [
-  {
-    _id: '123456789',
-    email: 'test@example.com',
-    password: 'test123', // In a real app, this would be hashed
-    displayName: 'Test User'
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://janga:busseja@janga0.f5z2f6j.mongodb.net/?retryWrites=true&w=majority';
+
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+  });
+
+// User Schema and Model
+const userSchema = new mongoose.Schema({
+  email: { 
+    type: String, 
+    required: true, 
+    unique: true,
+    trim: true,
+    lowercase: true
   },
-  {
-    _id: '987654321',
-    email: 'the.nonprofit.org@gmail.com',
-    password: 'test123', // In a real app, this would be hashed
-    displayName: 'Nonprofit User'
+  password: { 
+    type: String, 
+    required: true 
+  },
+  displayName: { 
+    type: String, 
+    default: function() {
+      return this.email.split('@')[0];
+    }
+  },
+  createdAt: { 
+    type: Date, 
+    default: Date.now 
+  },
+  lastLoginAt: { 
+    type: Date 
   }
-];
+});
+
+// Pre-save hook to hash password
+userSchema.pre('save', async function(next) {
+  // Only hash the password if it's modified (or new)
+  if (!this.isModified('password')) return next();
+  
+  try {
+    // Generate a salt
+    const salt = await bcrypt.genSalt(10);
+    // Hash the password along with the new salt
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Method to compare passwords
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Create the User model
+const User = mongoose.model('User', userSchema);
+
+// Create test users if they don't exist
+async function createTestUsers() {
+  try {
+    // Check if test user exists
+    const testUser = await User.findOne({ email: 'test@example.com' });
+    if (!testUser) {
+      await User.create({
+        email: 'test@example.com',
+        password: 'test123',
+        displayName: 'Test User'
+      });
+      console.log('Created test user');
+    }
+    
+    // Check if nonprofit user exists
+    const nonprofitUser = await User.findOne({ email: 'the.nonprofit.org@gmail.com' });
+    if (!nonprofitUser) {
+      await User.create({
+        email: 'the.nonprofit.org@gmail.com',
+        password: 'test123',
+        displayName: 'Nonprofit User'
+      });
+      console.log('Created nonprofit user');
+    }
+  } catch (error) {
+    console.error('Error creating test users:', error);
+  }
+}
+
+// Call the function to create test users
+createTestUsers();
 
 // Middleware
 app.use(cors());
@@ -49,43 +133,66 @@ app.get('/api/hello', (req, res) => {
 
 // Authentication endpoints
 // Sign in route
-app.post('/api/auth/signin', (req, res) => {
+app.post('/api/auth/signin', async (req, res) => {
   try {
     console.log('Sign-in request received:', { email: req.body.email, password: '[REDACTED]' });
     
-    // Find user by email
-    const user = users.find(u => u.email === req.body.email);
-    
-    // Check if user exists and password matches
-    if (user && user.password === req.body.password) {
-      console.log('Login successful for:', user.email);
-      
-      const token = jwt.sign(
-        { email: user.email, id: user._id },
-        process.env.JWT_SECRET || 'default-secret',
-        { expiresIn: '24h' }
-      );
-
-      // Return user data without password
-      const userData = {
-        _id: user._id,
-        email: user.email,
-        displayName: user.displayName
-      };
-
-      console.log('Sending successful response with token and user data');
-      res.json({
-        success: true,
-        token,
-        data: userData
+    // Validate request
+    if (!req.body.email || !req.body.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
       });
-      return;
     }
-
-    console.log('Invalid credentials for:', req.body.email);
-    res.status(401).json({
-      success: false,
-      message: 'Invalid credentials'
+    
+    // Find user by email
+    const user = await User.findOne({ email: req.body.email });
+    
+    // Check if user exists
+    if (!user) {
+      console.log('User not found:', req.body.email);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+    
+    // Check password
+    const isPasswordValid = await user.comparePassword(req.body.password);
+    if (!isPasswordValid) {
+      console.log('Invalid password for:', req.body.email);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+    
+    console.log('Login successful for:', user.email);
+    
+    // Update last login time
+    user.lastLoginAt = new Date();
+    await user.save();
+    
+    // Generate token
+    const token = jwt.sign(
+      { email: user.email, id: user._id },
+      process.env.JWT_SECRET || 'default-secret',
+      { expiresIn: '24h' }
+    );
+    
+    // Return user data without password
+    const userData = {
+      _id: user._id,
+      email: user.email,
+      displayName: user.displayName,
+      createdAt: user.createdAt
+    };
+    
+    console.log('Sending successful response with token and user data');
+    res.json({
+      success: true,
+      token,
+      data: userData
     });
   } catch (error) {
     console.error('Sign-in error:', error);
@@ -103,7 +210,7 @@ app.post('/api/auth/signout', (req, res) => {
 });
 
 // Sign up route
-app.post('/api/auth/signup', (req, res) => {
+app.post('/api/auth/signup', async (req, res) => {
   try {
     console.log('Sign-up request received:', { 
       email: req.body.email, 
@@ -120,7 +227,7 @@ app.post('/api/auth/signup', (req, res) => {
     }
     
     // Check if user already exists
-    const existingUser = users.find(u => u.email === req.body.email);
+    const existingUser = await User.findOne({ email: req.body.email });
     if (existingUser) {
       return res.status(409).json({
         success: false,
@@ -128,22 +235,18 @@ app.post('/api/auth/signup', (req, res) => {
       });
     }
     
-    // For demonstration purposes, we'll create a new user with a random ID
-    const userId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    
-    // Create user object
-    const newUser = {
-      _id: userId,
+    // Create new user
+    const newUser = new User({
       email: req.body.email,
-      password: req.body.password, // In a real app, this would be hashed
+      password: req.body.password,
       displayName: req.body.displayName || req.body.email.split('@')[0],
-      createdAt: new Date().toISOString()
-    };
+      createdAt: new Date()
+    });
     
-    // Add user to our in-memory storage
-    users.push(newUser);
+    // Save user to database
+    await newUser.save();
     
-    console.log('New user added to in-memory storage. Total users:', users.length);
+    console.log('User created successfully:', { id: newUser._id, email: newUser.email });
     
     // Generate token
     const token = jwt.sign(
@@ -151,8 +254,6 @@ app.post('/api/auth/signup', (req, res) => {
       process.env.JWT_SECRET || 'default-secret',
       { expiresIn: '24h' }
     );
-    
-    console.log('User created successfully:', { userId, email: newUser.email });
     
     // Return user data without password
     const userData = {
@@ -171,6 +272,15 @@ app.post('/api/auth/signup', (req, res) => {
     });
   } catch (error) {
     console.error('Sign-up error:', error);
+    
+    // Check for duplicate key error (MongoDB error code 11000)
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Internal server error'
