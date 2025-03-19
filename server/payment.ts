@@ -13,10 +13,11 @@ try {
   
   // Check if Titan email is properly configured
   if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+    // Use exact port 465 and secure=true for Titan email
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.titan.email',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
+      port: parseInt(process.env.SMTP_PORT || '465'),
+      secure: process.env.SMTP_SECURE === 'true' || true, // Force SSL
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD
@@ -25,7 +26,7 @@ try {
       logger: true // Log to console
     });
     
-    console.log(`Using SMTP host: ${process.env.SMTP_HOST || 'smtp.titan.email'}`);
+    console.log(`Using SMTP host: ${process.env.SMTP_HOST || 'smtp.titan.email'} on port ${process.env.SMTP_PORT || '465'} with secure=${process.env.SMTP_SECURE || 'true'}`);
   } else {
     // Fallback to Ethereal for testing if no credentials provided
     console.log('No email credentials provided, creating test account with Ethereal');
@@ -40,12 +41,21 @@ try {
           pass: testAccount.pass
         }
       });
+      
+      // Verify the connection after creating test account
+      transporter.verify(function(error, success) {
+        if (error) {
+          console.error('Ethereal email verification failed:', error);
+        } else {
+          console.log('Ethereal email server is ready to send messages');
+        }
+      });
     }).catch(err => {
       console.error('Failed to create test email account:', err);
     });
   }
   
-  // Verify the connection after setup
+  // Verify the connection after setup (for Titan)
   if (transporter) {
     transporter.verify(function(error, success) {
       if (error) {
@@ -100,6 +110,12 @@ router.post('/confirm', authenticate, async (req: Request, res: Response) => {
             <p>Please verify this transaction and upgrade the user's account status.</p>
           `
         };
+        
+        console.log('Sending email with options:', JSON.stringify({
+          from: mailOptions.from,
+          to: mailOptions.to,
+          subject: mailOptions.subject
+        }));
         
         const info = await transporter.sendMail(mailOptions);
         console.log(`Email sent successfully: ${JSON.stringify(info)}`);
