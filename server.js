@@ -4,6 +4,10 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
+const dotenv = require('dotenv');
+
+// Load environment variables
+dotenv.config();
 
 // Initialize Express app
 const app = express();
@@ -62,6 +66,10 @@ try {
           default: function() {
             return this.email.split('@')[0];
           }
+        },
+        isPaidUser: {
+          type: Boolean,
+          default: false
         },
         createdAt: { 
           type: Date, 
@@ -134,6 +142,101 @@ try {
       
       // Export the User model for use in routes
       global.User = User;
+      
+      // Load our models
+      try {
+        // Import and register Research Thread model
+        const ResearchThreadSchema = new mongoose.Schema({
+          userId: {
+            type: String,
+            required: true,
+            index: true
+          },
+          query: {
+            type: String,
+            required: true
+          },
+          result: {
+            type: String,
+            required: true
+          },
+          timestamp: {
+            type: Date,
+            default: Date.now
+          },
+          tags: {
+            type: [String],
+            default: []
+          }
+        });
+        
+        global.ResearchThread = mongoose.model('ResearchThread', ResearchThreadSchema);
+        
+        // Import and register Custom Workflow model
+        const WorkflowStepSchema = new mongoose.Schema({
+          title: {
+            type: String,
+            required: true
+          },
+          description: {
+            type: String,
+            required: true
+          },
+          order: {
+            type: Number,
+            required: true
+          },
+          isCompleted: {
+            type: Boolean,
+            default: false
+          }
+        });
+        
+        const CustomWorkflowSchema = new mongoose.Schema({
+          userId: {
+            type: String,
+            required: true,
+            index: true
+          },
+          name: {
+            type: String,
+            required: true
+          },
+          description: {
+            type: String,
+            required: true
+          },
+          steps: {
+            type: [WorkflowStepSchema],
+            default: []
+          },
+          status: {
+            type: String,
+            enum: ['active', 'draft', 'archived'],
+            default: 'draft'
+          },
+          createdAt: {
+            type: Date,
+            default: Date.now
+          },
+          updatedAt: {
+            type: Date,
+            default: Date.now
+          }
+        });
+        
+        // Update timestamp on save
+        CustomWorkflowSchema.pre('save', function(next) {
+          this.updatedAt = new Date();
+          next();
+        });
+        
+        global.CustomWorkflow = mongoose.model('CustomWorkflow', CustomWorkflowSchema);
+        
+        console.log('All models loaded successfully');
+      } catch (modelError) {
+        console.error('Error loading models:', modelError);
+      }
     })
     .catch(err => {
       console.error('MongoDB connection error:', err);
@@ -228,6 +331,7 @@ app.post('/api/auth/signin', async (req, res) => {
       _id: user._id,
       email: user.email,
       displayName: user.displayName,
+      isPaidUser: user.isPaidUser || false,
       createdAt: user.createdAt
     };
     
@@ -249,195 +353,292 @@ app.post('/api/auth/signin', async (req, res) => {
 // Sign out route
 app.post('/api/auth/signout', (req, res) => {
   // In a stateless JWT setup, the client is responsible for removing the token
-  res.json({ success: true });
+  res.json({
+    success: true
+  });
 });
 
-// Sign up route
-app.post('/api/auth/signup', async (req, res) => {
-  try {
-    console.log('Sign-up request received:', { 
-      email: req.body.email, 
-      password: '[REDACTED]',
-      displayName: req.body.displayName 
-    });
-    
-    // Validate request
-    if (!req.body.email || !req.body.password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email and password are required'
-      });
-    }
-    
-    let newUser;
-    let userData;
-    
-    if (useInMemoryStorage) {
-      // Check if user already exists in memory
-      const existingUser = users.find(u => u.email === req.body.email);
-      if (existingUser) {
-        return res.status(409).json({
-          success: false,
-          message: 'User with this email already exists'
-        });
-      }
-      
-      // Create new user in memory
-      newUser = {
-        _id: Date.now().toString(),
-        email: req.body.email,
-        password: req.body.password,
-        displayName: req.body.displayName || req.body.email.split('@')[0],
-        createdAt: new Date()
-      };
-      
-      // Add to in-memory array
-      users.push(newUser);
-      
-      // Prepare user data for response
-      userData = {
-        _id: newUser._id,
-        email: newUser.email,
-        displayName: newUser.displayName,
-        createdAt: newUser.createdAt
-      };
-    } 
-    else {
-      // Check if user already exists in MongoDB
-      const existingUser = await global.User.findOne({ email: req.body.email });
-      if (existingUser) {
-        return res.status(409).json({
-          success: false,
-          message: 'User with this email already exists'
-        });
-      }
-      
-      // Create new user in MongoDB
-      newUser = new global.User({
-        email: req.body.email,
-        password: req.body.password,
-        displayName: req.body.displayName || req.body.email.split('@')[0],
-        createdAt: new Date()
-      });
-      
-      // Save to database
-      await newUser.save();
-      
-      // Prepare user data for response
-      userData = {
-        _id: newUser._id,
-        email: newUser.email,
-        displayName: newUser.displayName,
-        createdAt: newUser.createdAt
-      };
-    }
-    
-    console.log('User created successfully:', { id: userData._id, email: userData.email });
-    
-    // Generate token
-    const token = jwt.sign(
-      { email: userData.email, id: userData._id },
-      process.env.JWT_SECRET || 'default-secret',
-      { expiresIn: '24h' }
-    );
-    
-    // Return success response
-    res.status(201).json({
-      success: true,
-      message: 'User created successfully',
-      token,
-      data: userData
-    });
-  } catch (error) {
-    console.error('Sign-up error:', error);
-    
-    // Check for duplicate key error (MongoDB error code 11000)
-    if (error.code === 11000) {
-      return res.status(409).json({
-        success: false,
-        message: 'User with this email already exists'
-      });
-    }
-    
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-});
-
-// Research API endpoint
+// Research endpoint
 app.post('/api/research', async (req, res) => {
   try {
-    console.log('Research request received:', req.body);
     const { query } = req.body;
+    const authHeader = req.headers.authorization;
+    let user = null;
+    
+    // Extract user from token if available
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
+        if (!useInMemoryStorage) {
+          user = await global.User.findById(decoded.id);
+        }
+      } catch (err) {
+        console.error('Token verification failed:', err);
+      }
+    }
     
     if (!query) {
       return res.status(400).json({
         success: false,
-        error: 'Missing query parameter',
-        message: 'Please provide a search query'
+        message: 'Query is required'
       });
     }
     
-    // Check if OpenAI API key is configured
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('OpenAI API key is missing');
-      return res.status(503).json({
-        success: false,
-        error: 'Service Unavailable',
-        message: 'The research service is currently unavailable due to configuration issues. Please try again later.'
-      });
+    // Placeholder for real AI research
+    const result = `Research results for: ${query}\n\nThis is a simulated response. In a production environment, this would be the result of AI-processed research.`;
+    
+    // Save research thread for premium users
+    if (user && user.isPaidUser && global.ResearchThread) {
+      try {
+        await global.ResearchThread.create({
+          userId: user._id.toString(),
+          query,
+          result,
+          timestamp: new Date()
+        });
+        console.log(`Saved research thread for user ${user._id}`);
+      } catch (saveError) {
+        console.error('Failed to save research thread:', saveError);
+      }
     }
     
-    // Initialize OpenAI
-    const OpenAI = require('openai');
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-    
-    console.log('Performing research with OpenAI for:', query);
-    
-    // Call OpenAI API
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
-      messages: [
-        {
-          role: "system",
-          content: `You are an AI research assistant specializing in automation solutions. 
-          When asked about automation, provide detailed, practical advice including:
-          1. Step-by-step implementation guide
-          2. Recommended tools and services
-          3. Best practices and potential pitfalls
-          4. Cost estimates and ROI considerations
-          5. Integration tips with existing systems
-          Format your response in clear sections with markdown headings.`
-        },
-        {
-          role: "user",
-          content: query
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
-    });
-    
-    console.log('OpenAI response received');
     res.json({
       success: true,
-      result: completion.choices[0].message.content || 'No results found'
+      result
     });
   } catch (error) {
     console.error('Research error:', error);
     res.status(500).json({
       success: false,
-      error: 'Internal Server Error',
-      message: error.message || 'An unexpected error occurred'
+      message: 'Failed to process research'
     });
   }
 });
 
-// Catch-all route to serve the SPA
+// Get research history (premium users only)
+app.get('/api/research/history', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    let user;
+    
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
+      if (!useInMemoryStorage) {
+        user = await global.User.findById(decoded.id);
+      }
+    } catch (err) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    if (!user.isPaidUser) {
+      return res.status(403).json({
+        success: false,
+        message: 'Premium subscription required'
+      });
+    }
+    
+    if (!global.ResearchThread) {
+      return res.status(500).json({
+        success: false,
+        message: 'Research history functionality unavailable'
+      });
+    }
+    
+    const threads = await global.ResearchThread.find({ userId: user._id.toString() })
+      .sort({ timestamp: -1 })
+      .lean()
+      .exec();
+    
+    // Transform _id to id for consistency
+    const transformedThreads = threads.map(thread => ({
+      id: thread._id.toString(),
+      query: thread.query,
+      result: thread.result,
+      timestamp: thread.timestamp,
+      tags: thread.tags || []
+    }));
+    
+    res.json({
+      success: true,
+      data: transformedThreads
+    });
+  } catch (error) {
+    console.error('Error fetching research history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch research history'
+    });
+  }
+});
+
+// Payment confirmation endpoint
+app.post('/api/payment/confirm', async (req, res) => {
+  try {
+    const { transactionId } = req.body;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+    
+    if (!transactionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Transaction ID is required'
+      });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    let user;
+    
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
+      if (!useInMemoryStorage) {
+        user = await global.User.findById(decoded.id);
+      }
+    } catch (err) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    console.log(`Payment confirmation received - User: ${user.email}, Transaction: ${transactionId}`);
+    
+    // In a production environment, send email notification
+    // For now, just log it
+    console.log(`PAYMENT NOTIFICATION: User ${user.email} (${user._id}) submitted transaction ${transactionId}`);
+    
+    res.json({
+      success: true,
+      message: 'Payment confirmation received. Your account will be upgraded once the payment is verified.'
+    });
+  } catch (error) {
+    console.error('Payment confirmation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process payment confirmation'
+    });
+  }
+});
+
+// Admin endpoint to upgrade user
+app.post('/api/admin/upgrade-user', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    let adminUser;
+    
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
+      if (!useInMemoryStorage) {
+        adminUser = await global.User.findById(decoded.id);
+      }
+    } catch (err) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    
+    if (!adminUser) {
+      return res.status(401).json({
+        success: false,
+        message: 'Admin user not found'
+      });
+    }
+    
+    // Check if user is admin (by email for simplicity)
+    const adminEmails = ['jason@abitofadvicellc.com', 'the.nonprofit.org@gmail.com'];
+    if (!adminEmails.includes(adminUser.email)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin access required'
+      });
+    }
+    
+    // Find and upgrade user
+    if (useInMemoryStorage) {
+      return res.status(500).json({
+        success: false,
+        message: 'Cannot upgrade users in memory-only mode'
+      });
+    }
+    
+    const userToUpgrade = await global.User.findById(userId);
+    
+    if (!userToUpgrade) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    userToUpgrade.isPaidUser = true;
+    await userToUpgrade.save();
+    
+    console.log(`User ${userId} upgraded to premium by admin ${adminUser.email}`);
+    
+    res.json({
+      success: true,
+      message: `User ${userToUpgrade.email} has been upgraded to premium`
+    });
+  } catch (error) {
+    console.error('Admin upgrade error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upgrade user'
+    });
+  }
+});
+
+// Serve index.html for client-side routing
 app.get('*', (req, res) => {
   res.sendFile(path.join(staticPath, 'index.html'));
 });
@@ -445,13 +646,5 @@ app.get('*', (req, res) => {
 // Start the server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
-  console.log(`Current directory: ${__dirname}`);
-  console.log(`Files in dist directory:`);
-  try {
-    const files = fs.readdirSync(staticPath);
-    console.log(files);
-  } catch (err) {
-    console.error(`Error reading dist directory: ${err.message}`);
-  }
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

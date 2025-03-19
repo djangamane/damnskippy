@@ -1,5 +1,7 @@
 import { Router, Request, Response, RequestHandler } from 'express';
 import OpenAI from 'openai';
+import { ResearchThreadModel } from './models/ResearchThread';
+import { extractUserFromRequest } from './auth';
 
 const router = Router();
 
@@ -69,6 +71,7 @@ const handleResearch: RequestHandler = async (req, res, next) => {
   try {
     console.log(`${new Date().toISOString()} - POST /api/research`);
     const { query } = req.body;
+    const user = extractUserFromRequest(req);
 
     if (!query) {
       res.status(400).json({
@@ -91,6 +94,22 @@ const handleResearch: RequestHandler = async (req, res, next) => {
     console.log('Starting research process for query:', query);
     const result = await performResearch(query);
 
+    // Save research thread for paid users
+    if (user && user.isPaidUser) {
+      try {
+        await ResearchThreadModel.create({
+          userId: user.id,
+          query,
+          result,
+          timestamp: new Date()
+        });
+        console.log(`Saved research thread for user ${user.id}`);
+      } catch (saveError) {
+        console.error('Failed to save research thread:', saveError);
+        // Continue even if saving fails
+      }
+    }
+
     res.json({
       success: true,
       result: result
@@ -105,6 +124,42 @@ const handleResearch: RequestHandler = async (req, res, next) => {
     });
   }
 };
+
+// Get user's research history (for premium users only)
+router.get('/history', async (req, res) => {
+  try {
+    const user = extractUserFromRequest(req);
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+    
+    if (!user.isPaidUser) {
+      return res.status(403).json({
+        success: false,
+        message: 'Premium subscription required to access research history'
+      });
+    }
+    
+    const threads = await ResearchThreadModel.find({ userId: user.id })
+      .sort({ timestamp: -1 })
+      .limit(50);
+      
+    res.json({
+      success: true,
+      data: threads
+    });
+  } catch (error: any) {
+    console.error('Failed to fetch research history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch research history'
+    });
+  }
+});
 
 router.post('/', handleResearch);
 
