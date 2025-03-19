@@ -7,6 +7,8 @@
     <title>skipthegames4AI.com - AI-Powered Research Automation</title>
     <!-- Use a relative path for CSS that will be processed by Vite -->
     <link rel="stylesheet" href="./src/index.css">
+    <!-- ElevenLabs Convai Widget -->
+    <script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>
     <script>
       // Add early logging to track page load
       console.log('Page loading started at:', new Date().toISOString());
@@ -20,6 +22,8 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- ElevenLabs Convai Agent -->
+    <elevenlabs-convai agent-id="YCH6uQg1XXDksRz73KD6"></elevenlabs-convai>
     <!-- Use the entry point that Vite expects -->
     <script type="module" src="./src/main.tsx"></script>
     <script>

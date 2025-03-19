@@ -200,7 +200,7 @@ export default function LandingPage() {
             {/* GFE Plan */}
             <FeatureCard
               title="GFE Plan"
-              description="100 days of fully automated cold outreach with 10,000 pre-qualified leads for just $1,000."
+              description="100 days of fully automated cold outreach (email/phone/SMS and social media content) for just $1,000."
               icon={<span>💃</span>}
               onClick={openAuthModal}
             />
@@ -273,7 +273,7 @@ export default function LandingPage() {
               <span className="ml-2 text-xl font-bold text-cyan-400">SkipTheGames4AI.com</span>
             </div>
             <div className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} SkipTheGames4AI.com. All rights reserved.
+              &copy; {new Date().getFullYear()} SkipTheGames4AI.com. All rights reserved.
             </div>
           </div>
         </div>
