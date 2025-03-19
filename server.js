@@ -561,6 +561,34 @@ app.get('/api/research/history', async (req, res) => {
   }
 });
 
+// Get individual research thread
+app.get('/api/research/thread/:id', async (req, res) => {
+  try {
+    const thread = await global.ResearchThread.findById(req.params.id);
+    if (!thread) {
+      return res.status(404).json({ error: 'Thread not found' });
+    }
+    
+    // Verify the user has access to this thread
+    const token = req.headers.authorization?.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    if (thread.userId !== decoded.userId) {
+      return res.status(403).json({ error: 'Unauthorized access to thread' });
+    }
+    
+    res.json({
+      id: thread._id,
+      query: thread.query,
+      result: thread.result,
+      timestamp: thread.timestamp
+    });
+  } catch (error) {
+    console.error('Error fetching research thread:', error);
+    res.status(500).json({ error: 'Failed to fetch research thread' });
+  }
+});
+
 // Payment confirmation endpoint
 app.post('/api/payment/confirm', async (req, res) => {
   try {

@@ -4,6 +4,7 @@ import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import ResearchEngine from './components/ResearchEngine';
+import ResearchThread from './components/ResearchThread';
 import PaymentPage from './components/PaymentPage';
 import SignupSuccess from './components/SignupSuccess';
 import { AuthProvider } from './contexts/AuthContext';
@@ -38,7 +39,7 @@ function App() {
             path="/research/:id"
             element={
               <PrivateRoute>
-                <Navigate to="/research" replace />
+                <ResearchThread />
               </PrivateRoute>
             }
           />
