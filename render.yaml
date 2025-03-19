@@ -8,10 +8,11 @@ services:
       npm run build
       npm run build:server
       mkdir -p dist/server
-      cp -r dist/server/* dist/server/
+      cp -r server/*.js dist/server/
       cp package*.json dist/
       cd dist && npm ci --production --ignore-scripts
-    startCommand: NODE_ENV=production node server/index.js
+    startCommand: |
+      cd /opt/render/project/src/dist && NODE_ENV=production node server/index.js
     envVars:
       - key: NODE_ENV
         value: production
