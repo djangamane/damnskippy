@@ -609,7 +609,7 @@ app.post('/api/payment/confirm', async (req, res) => {
       
       res.json({
         success: true,
-        message: 'Your account has been upgraded successfully.',
+        message: 'Your account has been upgraded successfully. Please log out and log back in to access your premium features.',
         data: userData
       });
     } catch (saveError) {
