@@ -10,8 +10,10 @@ services:
       - key: PORT
         value: 3001
       - key: MONGODB_URI
+        value: mongodb+srv://janga:busseja@janga0.f5z2f6j.mongodb.net/damnskippy?retryWrites=true&w=majority
         sync: false
       - key: JWT_SECRET
+        generateValue: true
         sync: false
       - key: OPENAI_API_KEY
         sync: false

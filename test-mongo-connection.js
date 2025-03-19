@@ -7,7 +7,9 @@ const { MongoClient } = require('mongodb');
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://janga:busseja@janga0.f5z2f6j.mongodb.net/damnskippy?retryWrites=true&w=majority';
 
 async function testConnection() {
-  console.log('Testing MongoDB connection with URI:', MONGODB_URI.replace(/:[^:]*@/, ':****@'));
+  // Clean up the URI display for logging (hide password)
+  const sanitizedUri = MONGODB_URI.replace(/:[^:]*@/, ':****@');
+  console.log('Testing MongoDB connection with URI:', sanitizedUri);
   
   const client = new MongoClient(MONGODB_URI, {
     // These options help with connection issues
