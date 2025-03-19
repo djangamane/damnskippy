@@ -4,8 +4,6 @@
 const path = require('path');
 const fs = require('fs');
 
-const __dirname = path.resolve();
-
 // Check if the compiled server file exists
 const serverPath = path.join(__dirname, 'dist', 'server', 'index.js');
 
@@ -22,8 +20,6 @@ if (fs.existsSync(serverPath)) {
 // Simple monolithic server.js for production
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
 
 // Initialize Express app
 const app = express();
