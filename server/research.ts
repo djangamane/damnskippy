@@ -1,7 +1,7 @@
 import { Router, Request, Response, RequestHandler } from 'express';
 import OpenAI from 'openai';
 import { ResearchThreadModel } from './models/ResearchThread';
-import { extractUserFromRequest } from './auth';
+import { extractUserFromRequest, authenticate } from './auth';
 
 const router = Router();
 
@@ -71,53 +71,61 @@ const handleResearch: RequestHandler = async (req, res, next) => {
   try {
     console.log(`${new Date().toISOString()} - POST /api/research`);
     const { query } = req.body;
-    const user = extractUserFromRequest(req);
+    const user = await extractUserFromRequest(req);
 
     if (!query) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         error: 'Missing query parameter',
         message: 'Please provide a search query'
       });
-      return;
     }
 
     if (!openai) {
-      res.status(503).json({
+      return res.status(503).json({
         success: false,
         error: 'Service Unavailable',
         message: 'The research service is currently unavailable due to configuration issues. Please try again later.'
       });
-      return;
     }
 
     console.log('Starting research process for query:', query);
+    
+    // Always use the real AI processing, not simulated results
     const result = await performResearch(query);
+    console.log('Research completed successfully');
 
-    // Save research thread for paid users
-    if (user && user.isPaidUser) {
-      try {
-        await ResearchThreadModel.create({
-          userId: user.id,
-          query,
-          result,
-          timestamp: new Date()
-        });
-        console.log(`Saved research thread for user ${user.id}`);
-      } catch (saveError) {
-        console.error('Failed to save research thread:', saveError);
-        // Continue even if saving fails
+    // Save research thread (for all users now)
+    try {
+      if (!global.researchThreads) {
+        global.researchThreads = [];
       }
+      
+      // Create new thread
+      const newThread = {
+        id: `thread_${Date.now()}`,
+        userId: user?.id || 'anonymous',
+        query,
+        result,
+        timestamp: new Date().toISOString(),
+        tags: []
+      };
+      
+      global.researchThreads.push(newThread);
+      console.log(`Saved research thread for user ${user?.id || 'anonymous'}`);
+    } catch (saveError) {
+      console.error('Failed to save research thread:', saveError);
+      // Continue even if saving fails
     }
 
-    res.json({
+    return res.json({
       success: true,
       result: result
     });
   } catch (error: any) {
     console.error('Research processing error:', error);
     const status = (error as ResearchError).status || 500;
-    res.status(status).json({
+    return res.status(status).json({
       success: false,
       error: 'Research processing failed',
       message: error.message
@@ -157,6 +165,206 @@ router.get('/history', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch research history'
+    });
+  }
+});
+
+// Define the Research Thread interface
+interface ResearchThread {
+  id: string;
+  userId: string;
+  query: string;
+  result: string;
+  timestamp: string;
+  tags?: string[];
+}
+
+// In-memory storage for research threads (for development/testing)
+let researchThreads: ResearchThread[] = [];
+
+// Get all research threads for authenticated user
+router.get('/threads', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = await extractUserFromRequest(req);
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+    
+    // Always allow access to threads regardless of premium status
+    
+    // Get threads from database or in-memory storage
+    let userThreads = [];
+    
+    if (global.researchThreads && Array.isArray(global.researchThreads)) {
+      // Use in-memory storage
+      userThreads = global.researchThreads.filter(thread => thread.userId === user.id);
+    } else {
+      // If no storage available, return empty array
+      userThreads = [];
+    }
+    
+    return res.json({
+      success: true,
+      data: userThreads
+    });
+  } catch (error) {
+    console.error('Error fetching research threads:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch research threads'
+    });
+  }
+});
+
+// Get a specific research thread
+router.get('/threads/:id', async (req: Request, res: Response) => {
+  try {
+    const user = await extractUserFromRequest(req);
+    const threadId = req.params.id;
+    
+    if (!user) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+      return;
+    }
+    
+    // Find thread by ID
+    let thread: ResearchThread | undefined;
+    
+    if (global.researchThreads && Array.isArray(global.researchThreads)) {
+      thread = global.researchThreads.find(t => t.id === threadId && t.userId === user.id);
+    }
+    
+    if (!thread) {
+      res.status(404).json({
+        success: false,
+        message: 'Research thread not found'
+      });
+      return;
+    }
+    
+    res.json({
+      success: true,
+      data: thread
+    });
+  } catch (error) {
+    console.error('Error fetching research thread:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch research thread'
+    });
+  }
+});
+
+// Save a new research thread
+router.post('/threads', async (req: Request, res: Response) => {
+  try {
+    const user = await extractUserFromRequest(req);
+    
+    if (!user) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+      return;
+    }
+    
+    const { query, result, tags } = req.body;
+    
+    if (!query || !result) {
+      res.status(400).json({
+        success: false,
+        message: 'Query and result are required'
+      });
+      return;
+    }
+    
+    // Create new thread
+    const newThread: ResearchThread = {
+      id: `thread_${Date.now()}`,
+      userId: user.id,
+      query,
+      result,
+      timestamp: new Date().toISOString(),
+      tags: tags || []
+    };
+    
+    // Save thread to database or in-memory storage
+    if (!global.researchThreads) {
+      global.researchThreads = [];
+    }
+    
+    global.researchThreads.push(newThread);
+    
+    res.status(201).json({
+      success: true,
+      data: newThread
+    });
+  } catch (error) {
+    console.error('Error saving research thread:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save research thread'
+    });
+  }
+});
+
+// Update a research thread
+router.put('/threads/:id', async (req: Request, res: Response) => {
+  try {
+    const user = await extractUserFromRequest(req);
+    const threadId = req.params.id;
+    
+    if (!user) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+      return;
+    }
+    
+    const { query, result, tags } = req.body;
+    
+    // Find thread index
+    let threadIndex = -1;
+    
+    if (global.researchThreads && Array.isArray(global.researchThreads)) {
+      threadIndex = global.researchThreads.findIndex(t => t.id === threadId && t.userId === user.id);
+    }
+    
+    if (threadIndex === -1) {
+      res.status(404).json({
+        success: false,
+        message: 'Research thread not found'
+      });
+      return;
+    }
+    
+    // Update thread
+    const updatedThread = {
+      ...global.researchThreads[threadIndex],
+      query: query || global.researchThreads[threadIndex].query,
+      result: result || global.researchThreads[threadIndex].result,
+      tags: tags || global.researchThreads[threadIndex].tags
+    };
+    
+    global.researchThreads[threadIndex] = updatedThread;
+    
+    res.json({
+      success: true,
+      data: updatedThread
+    });
+  } catch (error) {
+    console.error('Error updating research thread:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update research thread'
     });
   }
 });

@@ -358,63 +358,126 @@ app.post('/api/auth/signout', (req, res) => {
   });
 });
 
-// Research endpoint
-app.post('/api/research', async (req, res) => {
+// Load research router to handle API requests
+try {
+  const { researchRouter } = require('./server/research');
+  app.use('/api/research', researchRouter);
+  console.log('Research router loaded successfully');
+} catch (error) {
+  console.error('Failed to load research router:', error);
+  
+  // Fallback OpenAI integration if the router fails to load
+  const OpenAI = require('openai');
+  let openai = null;
+  
   try {
-    const { query } = req.body;
-    const authHeader = req.headers.authorization;
-    let user = null;
-    
-    // Extract user from token if available
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
-        if (!useInMemoryStorage) {
-          user = await global.User.findById(decoded.id);
-        }
-      } catch (err) {
-        console.error('Token verification failed:', err);
-      }
+    // Initialize OpenAI directly if needed
+    if (process.env.OPENAI_API_KEY) {
+      openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      console.log('Fallback OpenAI client initialized successfully');
     }
-    
-    if (!query) {
-      return res.status(400).json({
+  } catch (openaiError) {
+    console.error('Failed to initialize fallback OpenAI client:', openaiError);
+  }
+  
+  // Fallback research endpoint
+  app.post('/api/research', async (req, res) => {
+    try {
+      const { query } = req.body;
+      const authHeader = req.headers.authorization;
+      let user = null;
+      
+      // Extract user from token if available
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
+          if (!useInMemoryStorage) {
+            user = await global.User.findById(decoded.id);
+          }
+        } catch (err) {
+          console.error('Token verification failed:', err);
+        }
+      }
+      
+      if (!query) {
+        return res.status(400).json({
+          success: false,
+          message: 'Query is required'
+        });
+      }
+      
+      let result;
+      
+      // Use OpenAI if available
+      if (openai) {
+        console.log('Using OpenAI to process research query:', query);
+        try {
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4-turbo-preview",
+            messages: [
+              {
+                role: "system",
+                content: `You are an AI research assistant specializing in automation solutions. 
+                When asked about automation, provide detailed, practical advice including:
+                1. Step-by-step implementation guide
+                2. Recommended tools and services
+                3. Best practices and potential pitfalls
+                4. Cost estimates and ROI considerations
+                5. Integration tips with existing systems
+                Format your response in clear sections with markdown headings.`
+              },
+              {
+                role: "user",
+                content: query
+              }
+            ],
+            temperature: 0.7,
+            max_tokens: 2000,
+          });
+          
+          result = completion.choices[0].message.content;
+          console.log('OpenAI returned a result successfully');
+        } catch (apiError) {
+          console.error('OpenAI API error:', apiError);
+          throw new Error(`Failed to process with OpenAI: ${apiError.message}`);
+        }
+      } else {
+        // Last resort fallback - only if OpenAI is completely unavailable
+        console.warn('No OpenAI client available, returning simulated response');
+        result = `Research results for: ${query}\n\nThis is a simulated response. Please configure OpenAI API key to get AI-processed research.`;
+      }
+      
+      // Save research thread for all users
+      if (user && global.ResearchThread) {
+        try {
+          await global.ResearchThread.create({
+            userId: user._id.toString(),
+            query,
+            result,
+            timestamp: new Date()
+          });
+          console.log(`Saved research thread for user ${user._id}`);
+        } catch (saveError) {
+          console.error('Failed to save research thread:', saveError);
+        }
+      }
+      
+      res.json({
+        success: true,
+        result
+      });
+    } catch (error) {
+      console.error('Research error:', error);
+      res.status(500).json({
         success: false,
-        message: 'Query is required'
+        message: 'Failed to process research: ' + error.message
       });
     }
-    
-    // Placeholder for real AI research
-    const result = `Research results for: ${query}\n\nThis is a simulated response. In a production environment, this would be the result of AI-processed research.`;
-    
-    // Save research thread for premium users
-    if (user && user.isPaidUser && global.ResearchThread) {
-      try {
-        await global.ResearchThread.create({
-          userId: user._id.toString(),
-          query,
-          result,
-          timestamp: new Date()
-        });
-        console.log(`Saved research thread for user ${user._id}`);
-      } catch (saveError) {
-        console.error('Failed to save research thread:', saveError);
-      }
-    }
-    
-    res.json({
-      success: true,
-      result
-    });
-  } catch (error) {
-    console.error('Research error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to process research'
-    });
-  }
-});
+  });
+}
 
 // Get research history (premium users only)
 app.get('/api/research/history', async (req, res) => {
