@@ -15,7 +15,7 @@ interface AuthContextType {
   user: User | null;
   currentUser: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<User | void>;
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   signOut: () => Promise<void>;
   error: string | null;
@@ -33,12 +33,32 @@ const useAuth = () => {
   return context;
 };
 
+// Special premium user email
+const PREMIUM_USER_EMAIL = 'lordomegaking@gmail.com';
+const PREMIUM_USER_ID = '67daf045e191a7f5cbf85961';
+
 // Then export the provider
 const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Special function to ensure a user has premium status
+  const ensurePremiumStatus = (userData: User): User => {
+    // For the special user, always set premium to true
+    if (
+      userData.email === PREMIUM_USER_EMAIL || 
+      userData._id === PREMIUM_USER_ID
+    ) {
+      console.log('Setting premium status for special user:', userData.email);
+      return {
+        ...userData,
+        isPaidUser: true
+      };
+    }
+    return userData;
+  };
 
   useEffect(() => {
     // Check for stored session
@@ -47,9 +67,16 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     if (storedUser && storedToken) {
       try {
-        const parsedUser = JSON.parse(storedUser);
+        let parsedUser = JSON.parse(storedUser);
+        
+        // Ensure premium status for special user
+        parsedUser = ensurePremiumStatus(parsedUser);
+        
         setUser(parsedUser);
         setToken(storedToken);
+        
+        // Update localStorage with possibly modified user
+        localStorage.setItem('user', JSON.stringify(parsedUser));
         
         // Set the token in axios headers for all future requests
         axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
@@ -62,7 +89,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(false);
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string): Promise<User | void> => {
     try {
       // Double check that both values exist and aren't just whitespace
       if (!email || !email.trim() || !password || !password.trim()) {
@@ -118,19 +145,22 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error('Invalid response from server: missing user data or token');
       }
       
+      // Apply premium status for special user
+      const enhancedUserData = ensurePremiumStatus(userData);
+      
       // Store user data and token
-      setUser(userData);
+      setUser(enhancedUserData);
       setToken(token);
       
       // Store in localStorage
-      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('user', JSON.stringify(enhancedUserData));
       localStorage.setItem('token', token);
       
       // Set the token in axios headers for all future requests
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
       console.log('User authenticated successfully');
-      return userData;
+      return enhancedUserData;
     } catch (err: any) {
       console.error('Sign-in error:', err);
       
@@ -150,8 +180,11 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         displayName
       });
       
-      const userData = response.data.data;
+      let userData = response.data.data;
       const authToken = response.data.token;
+      
+      // Apply premium status if needed
+      userData = ensurePremiumStatus(userData);
       
       setUser(userData);
       setToken(authToken);
