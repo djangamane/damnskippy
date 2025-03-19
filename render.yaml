@@ -2,7 +2,7 @@ services:
   - type: web
     name: skipthegames4ai
     env: node
-    buildCommand: npm install --include=dev; bash ./build.sh
+    buildCommand: npm install --include=dev --legacy-peer-deps && bash ./build.sh
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
