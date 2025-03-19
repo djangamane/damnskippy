@@ -2,11 +2,8 @@ services:
   - type: web
     name: skipthegames4ai
     env: node
-    buildCommand: |
-      npm install --include=dev
-      npm run build
-      npx tsc --project tsconfig.server.json
-    startCommand: node server.js
+    buildCommand: npm install && npm run build
+    startCommand: NODE_ENV=production node server.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -18,8 +15,6 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
-      - key: IS_RENDER
-        value: "true"
     healthCheckPath: /api/health
     autoDeploy: true
     domains:
