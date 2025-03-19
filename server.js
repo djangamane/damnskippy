@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const jwt = require('jsonwebtoken');
 
 // Initialize Express app
 const app = express();
@@ -27,6 +28,82 @@ app.get('/api/health', (req, res) => {
 // Simple API endpoint for testing
 app.get('/api/hello', (req, res) => {
   res.json({ message: 'Hello from the server!' });
+});
+
+// Authentication endpoints
+// Test account credentials
+const TEST_EMAIL = 'test@example.com';
+const TEST_PASSWORD = 'test123';
+
+// Sign in route
+app.post('/api/auth/signin', (req, res) => {
+  try {
+    console.log('Sign-in request received:', { email: req.body.email, password: '[REDACTED]' });
+    
+    // Check test account credentials
+    if (req.body.email === TEST_EMAIL && req.body.password === TEST_PASSWORD) {
+      console.log('Test account login successful');
+      
+      const token = jwt.sign(
+        { email: TEST_EMAIL },
+        process.env.JWT_SECRET || 'default-secret',
+        { expiresIn: '24h' }
+      );
+
+      console.log('Sending successful response with token and user data');
+      res.json({
+        success: true,
+        token,
+        data: {
+          _id: '123456789',
+          email: TEST_EMAIL,
+          displayName: 'Test User'
+        }
+      });
+      return;
+    }
+    
+    // Also accept the nonprofit email from the login page
+    if (req.body.email === 'the.nonprofit.org@gmail.com' && req.body.password === TEST_PASSWORD) {
+      console.log('Nonprofit account login successful');
+      
+      const token = jwt.sign(
+        { email: 'the.nonprofit.org@gmail.com' },
+        process.env.JWT_SECRET || 'default-secret',
+        { expiresIn: '24h' }
+      );
+
+      console.log('Sending successful response with token and user data');
+      res.json({
+        success: true,
+        token,
+        data: {
+          _id: '987654321',
+          email: 'the.nonprofit.org@gmail.com',
+          displayName: 'Nonprofit User'
+        }
+      });
+      return;
+    }
+
+    console.log('Invalid credentials for:', req.body.email);
+    res.status(401).json({
+      success: false,
+      message: 'Invalid credentials'
+    });
+  } catch (error) {
+    console.error('Sign-in error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Sign out route
+app.post('/api/auth/signout', (req, res) => {
+  // In a stateless JWT setup, the client is responsible for removing the token
+  res.json({ success: true });
 });
 
 // Research API endpoint
