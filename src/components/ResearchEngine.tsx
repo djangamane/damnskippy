@@ -25,7 +25,7 @@ export default function ResearchEngine() {
   const [result, setResult] = useState<ResearchResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { token } = useAuth();
+  const { token, signOut } = useAuth();
   const navigate = useNavigate();
 
   // Add Calendly script
@@ -194,7 +194,14 @@ export default function ResearchEngine() {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => {
+                signOut().then(() => {
+                  navigate('/');
+                }).catch(err => {
+                  console.error('Error during sign out:', err);
+                  navigate('/');
+                });
+              }}
               className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
             >
               Sign Out
