@@ -6,6 +6,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = join(__dirname, '..');
 
+console.log('Starting file copy process...');
+console.log('Root directory:', rootDir);
+
 // Helper function to copy directory recursively
 function copyDir(src, dest) {
   if (!existsSync(dest)) {
@@ -34,29 +37,31 @@ function copyDir(src, dest) {
 // Ensure dist directory exists
 const distDir = join(rootDir, 'dist');
 mkdirSync(distDir, { recursive: true });
+console.log('Created dist directory:', distDir);
 
 // Ensure dist/server directory exists
 const serverDist = join(distDir, 'server');
 mkdirSync(serverDist, { recursive: true });
+console.log('Created server directory:', serverDist);
 
-// Copy compiled server files
+// Copy server files
 console.log('Copying server files...');
-const serverBuildDir = join(rootDir, 'dist', 'server');
-if (existsSync(serverBuildDir)) {
-  const files = readdirSync(serverBuildDir);
+const serverSrc = join(rootDir, 'server');
+if (existsSync(serverSrc)) {
+  const files = readdirSync(serverSrc);
   for (const file of files) {
-    const srcPath = join(serverBuildDir, file);
+    const srcPath = join(serverSrc, file);
     const destPath = join(serverDist, file);
     try {
       copyFileSync(srcPath, destPath);
-      console.log(`✓ Copied ${file}`);
+      console.log(`✓ Copied server file: ${file}`);
     } catch (error) {
-      console.error(`⚠ Error copying ${file}:`, error.message);
+      console.error(`⚠ Error copying server file ${file}:`, error.message);
     }
   }
   console.log('✓ Server files copied');
 } else {
-  console.error('⚠ Server build directory not found');
+  console.error('⚠ Server source directory not found:', serverSrc);
 }
 
 // Copy environment files
@@ -64,8 +69,13 @@ const envFiles = ['.env', '.env.production'];
 envFiles.forEach(envFile => {
   const envPath = join(rootDir, envFile);
   if (existsSync(envPath)) {
-    copyFileSync(envPath, join(distDir, envFile));
-    console.log(`✓ ${envFile} copied`);
+    const destPath = join(distDir, envFile);
+    try {
+      copyFileSync(envPath, destPath);
+      console.log(`✓ Copied ${envFile}`);
+    } catch (error) {
+      console.error(`⚠ Error copying ${envFile}:`, error.message);
+    }
   } else {
     console.log(`⚠ ${envFile} not found`);
   }
@@ -77,8 +87,12 @@ packageFiles.forEach(file => {
   const src = join(rootDir, file);
   const dest = join(distDir, file);
   if (existsSync(src)) {
-    copyFileSync(src, dest);
-    console.log(`✓ ${file} copied`);
+    try {
+      copyFileSync(src, dest);
+      console.log(`✓ Copied ${file}`);
+    } catch (error) {
+      console.error(`⚠ Error copying ${file}:`, error.message);
+    }
   }
 });
 
