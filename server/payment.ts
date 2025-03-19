@@ -127,37 +127,96 @@ router.post('/confirm', authenticate, async (req: Request, res: Response) => {
     console.log(`PAYMENT NOTIFICATION: User ${user.email} (${user.id}) submitted transaction ${transactionId}`);
     
     // IMMEDIATE USER UPGRADE: Update the user to paid status directly
+    let upgradeSuccess = false;
+    
     try {
-      // Access User model from mongoose or global scope
-      const User = mongoose.model('User');
-      
-      if (!User) {
-        console.error('User model not found. Using in-memory approach instead.');
-        // If using in-memory storage in development
-        if (global.users && Array.isArray(global.users)) {
-          const userIndex = global.users.findIndex(u => u._id.toString() === user.id.toString());
-          if (userIndex !== -1) {
-            global.users[userIndex].isPaidUser = true;
-            console.log(`User ${user.email} upgraded to paid status (in-memory storage)`);
-          }
-        }
-      } else {
-        // Update user in MongoDB
-        const updatedUser = await User.findByIdAndUpdate(
+      // First try using global User model
+      if (typeof global.User === 'function') {
+        console.log('Using global User model to update user');
+        const updatedUser = await global.User.findByIdAndUpdate(
           user.id,
           { isPaidUser: true },
-          { new: true } // Return updated document
+          { new: true }
         );
         
         if (updatedUser) {
-          console.log(`User ${updatedUser.email} upgraded to paid status. isPaidUser=${updatedUser.isPaidUser}`);
+          console.log(`User ${updatedUser.email} upgraded to paid status via global model. isPaidUser=${updatedUser.isPaidUser}`);
+          upgradeSuccess = true;
         } else {
-          console.error(`Failed to find and update user with ID: ${user.id}`);
+          console.error(`Failed to find and update user with ID: ${user.id} via global model`);
+        }
+      } 
+      // If global model fails, try mongoose model
+      else {
+        console.log('Trying mongoose User model');
+        try {
+          // Try to get User model from mongoose
+          const User = mongoose.model('User');
+          const updatedUser = await User.findByIdAndUpdate(
+            user.id,
+            { isPaidUser: true },
+            { new: true }
+          );
+          
+          if (updatedUser) {
+            console.log(`User ${updatedUser.email} upgraded to paid status via mongoose. isPaidUser=${updatedUser.isPaidUser}`);
+            upgradeSuccess = true;
+          } else {
+            console.error(`Failed to find and update user with ID: ${user.id} via mongoose model`);
+          }
+        } catch (modelError) {
+          console.error('Error accessing User model from mongoose:', modelError);
+        }
+      }
+      
+      // Final fallback to in-memory approach
+      if (!upgradeSuccess && global.users && Array.isArray(global.users)) {
+        console.log('Using in-memory storage as fallback');
+        const userIndex = global.users.findIndex(u => u._id.toString() === user.id.toString());
+        if (userIndex !== -1) {
+          global.users[userIndex].isPaidUser = true;
+          console.log(`User ${user.email} upgraded to paid status (in-memory storage)`);
+          upgradeSuccess = true;
+        } else {
+          console.error(`User with ID ${user.id} not found in in-memory storage`);
+        }
+      }
+      
+      // Last resort: Use direct database connection
+      if (!upgradeSuccess) {
+        console.log('Attempting direct database update as last resort');
+        try {
+          // Define a basic user schema if needed
+          const userSchema = new mongoose.Schema({
+            email: String,
+            isPaidUser: Boolean
+          });
+          
+          // Use a specific model name to avoid conflicts
+          const UserDirect = mongoose.model('UserDirect', userSchema, 'users');
+          
+          const directUpdate = await UserDirect.updateOne(
+            { _id: mongoose.Types.ObjectId.createFromHexString(user.id) },
+            { $set: { isPaidUser: true } }
+          );
+          
+          console.log('Direct database update result:', directUpdate);
+          if (directUpdate.modifiedCount > 0) {
+            console.log(`User ${user.email} upgraded via direct database update`);
+            upgradeSuccess = true;
+          }
+        } catch (directDbError) {
+          console.error('Direct database update failed:', directDbError);
         }
       }
     } catch (dbError) {
-      console.error('Error updating user to paid status:', dbError);
-      // Continue execution - we'll still try to send the email and respond to the user
+      console.error('Error during user upgrade process:', dbError);
+    }
+    
+    if (!upgradeSuccess) {
+      console.warn(`⚠️ CRITICAL: Failed to upgrade user ${user.email} (${user.id}) to paid status after multiple attempts`);
+    } else {
+      console.log(`✅ UPGRADE SUCCESS: User ${user.email} (${user.id}) is now a paid user`);
     }
     
     // Generate email content for admin notification (optional, as we're auto-upgrading)
@@ -167,10 +226,14 @@ router.post('/confirm', authenticate, async (req: Request, res: Response) => {
       <p><strong>User ID:</strong> ${user.id}</p>
       <p><strong>Transaction ID:</strong> ${transactionId}</p>
       <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
-      <p>User has been automatically upgraded to paid status.</p>
+      <p><strong>Upgrade Status:</strong> ${upgradeSuccess ? 'SUCCESS' : 'FAILED'}</p>
+      <p>${upgradeSuccess ? 'User has been automatically upgraded to paid status.' : 'URGENT: System failed to upgrade user. Manual upgrade required!'}</p>
     `;
     
-    const subject = `Payment Confirmed & User Upgraded - ${user.email}`;
+    const subject = upgradeSuccess 
+      ? `Payment Confirmed & User Upgraded - ${user.email}`
+      : `URGENT: Payment Received but Upgrade Failed - ${user.email}`;
+    
     const from = process.env.EMAIL_USER || 'jason@abitofadvicellc.com';
     const to = process.env.ADMIN_EMAIL || 'jason@abitofadvicellc.com';
     
@@ -220,8 +283,10 @@ router.post('/confirm', authenticate, async (req: Request, res: Response) => {
     // Respond to the user - immediate confirmation of upgrade
     res.json({
       success: true,
-      message: 'Payment confirmed. Your account has been upgraded to premium status!',
-      isPaidUser: true
+      message: upgradeSuccess 
+        ? 'Payment confirmed. Your account has been upgraded to premium status!'
+        : 'Payment received. Your account will be upgraded shortly.',
+      isPaidUser: upgradeSuccess
     });
   } catch (error: any) {
     console.error('Payment confirmation error:', error);
