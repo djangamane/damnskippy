@@ -8,7 +8,9 @@ let openai = null;
 try {
   if (process.env.OPENAI_API_KEY) {
     openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
+      apiKey: process.env.OPENAI_API_KEY,
+      timeout: 300000, // 5 minute timeout
+      maxRetries: 3    // Retry up to 3 times on failures
     });
     console.log('OpenAI client initialized successfully');
   } else {
@@ -78,20 +80,32 @@ router.post('/', async (req, res) => {
             }
           ],
           temperature: 0.7,
-          max_tokens: 4000,
-          timeout: 300000 // 5 minute timeout for comprehensive responses
+          max_tokens: 4000
         });
         
         result = completion.choices[0].message.content;
         console.log('OpenAI response received successfully');
       } catch (apiError) {
         console.error('OpenAI API error:', apiError);
+        console.error('OpenAI API error details:', {
+          status: apiError.status,
+          message: apiError.message,
+          type: apiError.type,
+          code: apiError.code,
+          param: apiError.param
+        });
         
         // Check for specific OpenAI errors and provide better error messages
         if (apiError.status === 429) {
           result = "The OpenAI API rate limit has been reached. Please try again in a few minutes.";
         } else if (apiError.status === 401 || apiError.status === 403) {
           result = "There was an authentication error with the OpenAI API. Please contact support.";
+        } else if (apiError.status === 400) {
+          result = `There was a validation error with your query: ${apiError.message}`;
+        } else if (apiError.status === 500) {
+          result = "The OpenAI API is experiencing internal errors. Please try again later.";
+        } else if (apiError.code === 'ETIMEDOUT' || apiError.code === 'ESOCKETTIMEDOUT') {
+          result = "The request to the OpenAI API timed out. Please try again with a simpler query.";
         } else {
           result = `There was an error processing your research query: ${apiError.message}`;
         }
