@@ -15,22 +15,8 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3001;
 
-// For MongoDB connection issues in development, fall back to in-memory storage
-let useInMemoryStorage = false; // Start with MongoDB as default
-const users = [
-  {
-    _id: '123456789',
-    email: 'test@example.com',
-    password: 'test123',
-    displayName: 'Test User'
-  },
-  {
-    _id: '987654321',
-    email: 'the.nonprofit.org@gmail.com',
-    password: 'test123',
-    displayName: 'Nonprofit User'
-  }
-];
+// For MongoDB connection in production
+let useInMemoryStorage = false; // This should always be false in production
 
 // Try to connect to MongoDB
 console.log('Attempting to connect to MongoDB...');
@@ -42,8 +28,9 @@ mongoose.connect(process.env.MONGODB_URI, {
 })
 .then(() => {
   console.log('Connected to MongoDB successfully');
-  console.log('Database:', mongoose.connection.db.databaseName);
-  console.log('MongoDB connection state:', mongoose.connection.readyState);
+  const db = mongoose.connection;
+  console.log('Database:', db.name);
+  console.log('MongoDB connection state:', db.readyState);
   
   // User Schema and Model
   const userSchema = new mongoose.Schema({
@@ -242,7 +229,16 @@ mongoose.connect(process.env.MONGODB_URI, {
     code: err.code,
     stack: err.stack
   });
-  throw new Error('Failed to connect to MongoDB. Application cannot start without database connection.');
+  console.error('MongoDB connection error:', err);
+  
+  // In production, fail hard if MongoDB connection fails
+  if (process.env.NODE_ENV === 'production') {
+    console.error('CRITICAL ERROR: Cannot connect to MongoDB in production mode. Exiting...');
+    process.exit(1); // Exit with error code
+  } else {
+    console.log('WARNING: MongoDB connection failed but continuing in development mode.');
+    // For development only - allow continuing without MongoDB
+  }
 });
 
 // Monitor for MongoDB connection issues
@@ -502,102 +498,13 @@ app.post('/api/auth/signup', async (req, res) => {
 
 // Load research router to handle API requests
 try {
-  const { researchRouter } = require('./server/research');
+  const { researchRouter } = require('./server/research.js');
   app.use('/api/research', researchRouter);
   console.log('Research router loaded successfully');
 } catch (error) {
   console.error('Failed to load research router:', error);
-  console.log('Using fallback research handling...');
-  
-  // Fallback research handling if the router fails to load
-  app.post('/api/research', async (req, res) => {
-    try {
-      const { query } = req.body;
-      const token = req.headers.authorization?.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      // Simulation mode response
-      const result = `Fallback simulated response for query: "${query}"\n\nThis is a placeholder response since the research router failed to load.`;
-      
-      // Save the research thread
-      try {
-        const thread = await global.ResearchThread.create({
-          userId: decoded.userId || decoded.id,
-          query,
-          result
-        });
-        console.log(`Saved research thread for user ${decoded.userId || decoded.id}`);
-      } catch (saveError) {
-        console.error('Failed to save research thread:', saveError);
-        // Continue even if saving fails
-      }
-      
-      // Return the result in the format expected by the frontend
-      res.json({
-        success: true,
-        result: {
-          content: result,
-          workflow: null
-        }
-      });
-    } catch (error) {
-      console.error('Research error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to process research request'
-      });
-    }
-  });
-  
-  app.get('/api/research/history', async (req, res) => {
-    try {
-      const token = req.headers.authorization?.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      const threads = await global.ResearchThread.find({ userId: decoded.userId })
-        .sort({ timestamp: -1 })
-        .limit(50);
-      
-      res.json(threads.map(thread => ({
-        id: thread._id,
-        query: thread.query,
-        result: thread.result,
-        timestamp: thread.timestamp
-      })));
-    } catch (error) {
-      console.error('Error fetching research history:', error);
-      res.status(500).json({ error: 'Failed to fetch research history' });
-    }
-  });
+  console.log('Critical error: Research functionality is required for production. Application may not function correctly.');
 }
-
-// Get individual research thread
-app.get('/api/research/thread/:id', async (req, res) => {
-  try {
-    const thread = await global.ResearchThread.findById(req.params.id);
-    if (!thread) {
-      return res.status(404).json({ error: 'Thread not found' });
-    }
-    
-    // Verify the user has access to this thread
-    const token = req.headers.authorization?.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    if (thread.userId !== decoded.userId) {
-      return res.status(403).json({ error: 'Unauthorized access to thread' });
-    }
-    
-    res.json({
-      id: thread._id,
-      query: thread.query,
-      result: thread.result,
-      timestamp: thread.timestamp
-    });
-  } catch (error) {
-    console.error('Error fetching research thread:', error);
-    res.status(500).json({ error: 'Failed to fetch research thread' });
-  }
-});
 
 // Payment confirmation endpoint
 app.post('/api/payment/confirm', async (req, res) => {
