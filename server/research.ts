@@ -38,6 +38,9 @@ async function performResearch(query: string): Promise<ResearchResult> {
     }
 
     console.log('Performing research with OpenAI for:', query);
+    
+    // Add a distinctive log to identify the system prompt version
+    console.log('SYSTEM PROMPT VERSION: UPDATED WITH NEW STRUCTURE - May 30, 2024');
 
     // Set options with longer timeout
     const options = {
