@@ -142,8 +142,13 @@ const Dashboard = () => {
             }
           });
           
-          // The response is an array of threads directly
-          setThreads(response.data);
+          // Check if the response has the expected structure
+          if (response.data && response.data.success) {
+            setThreads(response.data.data || []);
+          } else {
+            // Direct array response (old format) or unexpected format
+            setThreads(Array.isArray(response.data) ? response.data : []);
+          }
         } else {
           const response = await axios.get('/api/workflows', {
             headers: {
