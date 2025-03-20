@@ -31,7 +31,9 @@ interface Workflow {
 interface ResearchResult {
   title: string;
   content: string;
-  workflow?: Workflow;
+  workflow?: Workflow | null;
+  success?: boolean;
+  error?: string;
 }
 
 // Add Calendly popup functionality
@@ -163,7 +165,7 @@ export default function ResearchEngine() {
     e.preventDefault();
     
     if (!query.trim()) {
-      setError('Please enter a research query');
+      setError('Please enter a query');
       return;
     }
     
@@ -179,25 +181,41 @@ export default function ResearchEngine() {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
-          },
-          timeout: 120000 // 2 minute timeout to match backend
+          }
         }
       );
       
-      if (response.data.success) {
+      setLoading(false);
+      
+      if (response.data && response.data.success) {
+        const resultData = response.data.result || {};
+        
         setResult({
-          title: response.data.result.title,
-          content: response.data.result.content,
-          workflow: response.data.result.workflow
+          title: resultData.title || 'Research Results',
+          content: resultData.content || 'No content available',
+          workflow: resultData.workflow || null,
+          success: true
         });
       } else {
-        setError(response.data.message || 'Failed to process research request');
+        const errorMessage = response.data?.error || response.data?.message || 'Unknown error occurred';
+        setError(errorMessage);
+        setResult({
+          title: 'Error',
+          content: `An error occurred: ${errorMessage}`,
+          success: false,
+          error: errorMessage
+        });
       }
-    } catch (err: unknown) {
-      console.error('Research request failed:', err);
-      setError((err as Error).message || 'An error occurred while processing your request');
-    } finally {
+    } catch (err: any) {
       setLoading(false);
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Unknown error occurred';
+      setError(errorMessage);
+      setResult({
+        title: 'Error',
+        content: `An error occurred: ${errorMessage}`,
+        success: false,
+        error: errorMessage
+      });
     }
   };
 
@@ -228,43 +246,53 @@ export default function ResearchEngine() {
     
     if (workflow.connections && Array.isArray(workflow.connections)) {
       workflow.connections.forEach((connection: WorkflowConnection) => {
-        const { source, target } = connection;
-        if (!nodeConnections[source]) {
-          nodeConnections[source] = [];
+        if (connection && typeof connection === 'object' && 'source' in connection && 'target' in connection) {
+          const { source, target } = connection;
+          if (source && target) {
+            if (!nodeConnections[source]) {
+              nodeConnections[source] = [];
+            }
+            nodeConnections[source].push(target);
+          }
         }
-        nodeConnections[source].push(target);
       });
     }
 
     return (
       <div className="workflow-diagram">
         <div className="flex flex-wrap justify-center gap-4 mb-4">
-          {workflow.nodes.map((node: WorkflowNode, index: number) => (
-            <div 
-              key={node.id || index} 
-              className="workflow-node"
-              style={{ 
-                backgroundColor: getNodeColor(node.type),
-                position: 'relative'
-              }}
-            >
-              <div className="workflow-node-title">{node.name || `Node ${index + 1}`}</div>
-              <div className="workflow-node-type">{node.type}</div>
-              {nodeConnections[node.id] && (
-                <div className="workflow-node-connections">
-                  <div className="text-xs mt-1">Connects to:</div>
-                  <ul className="text-xs list-disc pl-4">
-                    {nodeConnections[node.id].map((targetId: string, idx: number) => {
-                      const targetNode = workflow.nodes.find((n: WorkflowNode) => n.id === targetId);
-                      return (
-                        <li key={idx}>{targetNode ? targetNode.name : targetId}</li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </div>
-          ))}
+          {workflow.nodes.map((node: WorkflowNode, index: number) => {
+            if (!node || typeof node !== 'object') {
+              return null;
+            }
+            
+            return (
+              <div 
+                key={node.id || `node-${index}`} 
+                className="workflow-node"
+                style={{ 
+                  backgroundColor: getNodeColor(node.type || 'unknown'),
+                  position: 'relative'
+                }}
+              >
+                <div className="workflow-node-title">{node.name || `Node ${index + 1}`}</div>
+                <div className="workflow-node-type">{node.type || 'Unknown Type'}</div>
+                {node.id && nodeConnections[node.id] && (
+                  <div className="workflow-node-connections">
+                    <div className="text-xs mt-1">Connects to:</div>
+                    <ul className="text-xs list-disc pl-4">
+                      {nodeConnections[node.id].map((targetId: string, idx: number) => {
+                        const targetNode = workflow.nodes.find((n: WorkflowNode) => n && n.id === targetId);
+                        return (
+                          <li key={idx}>{targetNode && targetNode.name ? targetNode.name : targetId}</li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
         
         <div className="workflow-metadata mt-4 p-3 bg-gray-100 rounded-md">
@@ -306,19 +334,28 @@ export default function ResearchEngine() {
 
   // Function to download workflow JSON
   const downloadWorkflowJSON = (workflow: Workflow) => {
-    const workflowJSON = JSON.stringify(workflow, null, 2);
-    const blob = new Blob([workflowJSON], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    if (!workflow) {
+      console.error('Cannot download workflow: workflow is undefined');
+      return;
+    }
     
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'n8n-workflow.json';
-    document.body.appendChild(link);
-    link.click();
-    
-    // Clean up
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    try {
+      const workflowJSON = JSON.stringify(workflow, null, 2);
+      const blob = new Blob([workflowJSON], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'n8n-workflow.json';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading workflow JSON:', error);
+    }
   };
 
   return (
@@ -419,47 +456,32 @@ export default function ResearchEngine() {
                 <div className="bg-white p-6 rounded-lg shadow-md border border-indigo-100">
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-2xl font-semibold text-indigo-900">n8n Workflow</h2>
-                    <button
+                    <button 
                       onClick={() => {
-                        const blob = new Blob([JSON.stringify(result.workflow, null, 2)], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = 'workflow.json';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
+                        if (result.workflow) {
+                          downloadWorkflowJSON(result.workflow);
+                        }
                       }}
-                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center gap-2"
+                      className="px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 transition-colors"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                      Download Workflow
+                      Download JSON
                     </button>
                   </div>
                   
-                  {/* Workflow Visualization */}
                   <div className="mb-6">
-                    <h3 className="text-lg font-medium text-indigo-800 mb-3">Workflow Diagram</h3>
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 overflow-auto">
-                      <div className="workflow-diagram min-h-[300px] flex items-center justify-center">
-                        {renderWorkflowDiagram(result.workflow)}
-                      </div>
-                    </div>
+                    <h3 className="text-lg font-medium mb-2 text-indigo-800">Workflow Diagram</h3>
+                    {renderWorkflowDiagram(result.workflow)}
                   </div>
                   
-                  {/* Workflow JSON */}
                   <div>
-                    <h3 className="text-lg font-medium text-indigo-800 mb-3">Workflow JSON</h3>
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 overflow-x-auto">
-                      <pre className="text-sm text-gray-800 whitespace-pre-wrap">{JSON.stringify(result.workflow, null, 2)}</pre>
+                    <h3 className="text-lg font-medium mb-2 text-indigo-800">Workflow JSON</h3>
+                    <div className="workflow-json">
+                      <pre>{JSON.stringify(result.workflow, null, 2)}</pre>
                     </div>
                   </div>
                 </div>
               )}
-
+              
               {/* Premium Service Section */}
               <div className="bg-gradient-to-r from-indigo-600 to-purple-700 p-8 rounded-lg shadow-lg text-white">
                 <h2 className="text-4xl font-extrabold mb-6 text-center">LET US DO IT FOR YOU</h2>
