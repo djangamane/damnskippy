@@ -98,17 +98,27 @@ router.post('/', async (req, res) => {
       result = `Simulated response for query: "${query}"\n\nThis is a placeholder response since the OpenAI API key is not configured.`;
     }
     
-    // Save the research thread
-    const thread = await global.ResearchThread.create({
-      userId: decoded.id.toString(),
-      query,
-      result
-    });
-    
-    res.json({
+    // Save research thread
+    try {
+      // Create new thread in MongoDB
+      const thread = await global.ResearchThread.create({
+        userId: decoded.id.toString(),
+        query,
+        result
+      });
+      console.log(`Saved research thread for user ${decoded.id}`);
+    } catch (saveError) {
+      console.error('Failed to save research thread:', saveError);
+      // Continue even if saving fails
+    }
+
+    // Return the result in the format expected by the frontend
+    return res.json({
       success: true,
-      threadId: thread._id,
-      result
+      result: {
+        content: result,
+        workflow: null
+      }
     });
   } catch (error) {
     console.error('Research error:', error);
@@ -121,4 +131,4 @@ router.post('/', async (req, res) => {
 
 module.exports = {
   researchRouter: router
-}; 
+};

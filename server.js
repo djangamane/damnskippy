@@ -520,16 +520,25 @@ try {
       const result = `Fallback simulated response for query: "${query}"\n\nThis is a placeholder response since the research router failed to load.`;
       
       // Save the research thread
-      const thread = await global.ResearchThread.create({
-        userId: decoded.userId,
-        query,
-        result
-      });
+      try {
+        const thread = await global.ResearchThread.create({
+          userId: decoded.userId || decoded.id,
+          query,
+          result
+        });
+        console.log(`Saved research thread for user ${decoded.userId || decoded.id}`);
+      } catch (saveError) {
+        console.error('Failed to save research thread:', saveError);
+        // Continue even if saving fails
+      }
       
+      // Return the result in the format expected by the frontend
       res.json({
         success: true,
-        threadId: thread._id,
-        result
+        result: {
+          content: result,
+          workflow: null
+        }
       });
     } catch (error) {
       console.error('Research error:', error);
