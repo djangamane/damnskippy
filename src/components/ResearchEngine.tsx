@@ -11,6 +11,7 @@ interface ResearchResult {
   result: string;
   error?: string;
   message?: string;
+  workflow?: any;
 }
 
 // Add Calendly popup functionality
@@ -276,6 +277,37 @@ export default function ResearchEngine() {
                 <h2 className="text-2xl font-semibold mb-4 text-indigo-900">Research Results</h2>
                 <div className="prose max-w-none" dangerouslySetInnerHTML={renderContent(result.result)} />
               </div>
+
+              {/* n8n Workflow Section */}
+              {result.workflow && (
+                <div className="bg-white p-6 rounded-lg shadow-md border border-indigo-100">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-semibold text-indigo-900">n8n Workflow</h2>
+                    <button
+                      onClick={() => {
+                        const blob = new Blob([JSON.stringify(result.workflow, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'workflow.json';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      }}
+                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                      Download Workflow
+                    </button>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg overflow-x-auto">
+                    <pre className="text-sm text-gray-800">{JSON.stringify(result.workflow, null, 2)}</pre>
+                  </div>
+                </div>
+              )}
 
               {/* Premium Service Section */}
               <div className="bg-gradient-to-r from-indigo-600 to-purple-700 p-8 rounded-lg shadow-lg text-white">

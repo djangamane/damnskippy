@@ -26,7 +26,12 @@ interface ResearchError extends Error {
   status?: number;
 }
 
-async function performResearch(query: string): Promise<string> {
+interface ResearchResult {
+  content: string;
+  workflow: any | null;
+}
+
+async function performResearch(query: string): Promise<ResearchResult> {
   try {
     if (!openai) {
       throw new Error("OpenAI client is not initialized. Please check your API key configuration.");
@@ -46,13 +51,35 @@ async function performResearch(query: string): Promise<string> {
         {
           role: "system",
           content: `You are an AI research assistant specializing in automation solutions. 
-          When asked about automation, provide detailed, practical advice including:
-          1. Step-by-step implementation guide
-          2. Recommended tools and services
-          3. Best practices and potential pitfalls
-          4. Cost estimates and ROI considerations
-          5. Integration tips with existing systems
-          Format your response in clear sections with markdown headings.`
+          When asked about automation, provide detailed, practical advice in the following sections:
+
+          1. High-Level Solution Overview
+             - Step-by-step implementation guide
+             - Cost estimates and ROI considerations
+             - Integration tips with existing systems
+
+          2. Technical Implementation
+             - Recommended tools and services
+             - Best practices and potential pitfalls
+             - Code snippets or configuration examples where relevant
+
+          3. n8n Workflow Recommendations
+             - Specific n8n nodes and workflows that could help
+             - Integration points with other services
+             - Sample workflow structure
+
+          4. MCP (Model Context Protocol) Server Integration
+             - How to leverage MCP servers for enhanced functionality
+             - Recommended MCP configurations
+             - Integration with n8n workflows
+
+          5. n8n Workflow JSON (if applicable)
+             - If the solution can be implemented in n8n, provide a basic workflow JSON
+             - Include node configurations and connections
+             - Mark this section with [N8N_WORKFLOW_START] and [N8N_WORKFLOW_END] tags
+
+          Format your response in clear sections with markdown headings.
+          If a section is not applicable to the query, omit it entirely.`
         },
         {
           role: "user",
@@ -60,11 +87,29 @@ async function performResearch(query: string): Promise<string> {
         }
       ],
       temperature: 0.7,
-      max_tokens: 4000, // Increased from 2000 to allow more comprehensive responses
+      max_tokens: 4000,
     }, options);
 
     console.log('OpenAI response received successfully');
-    return completion.choices[0].message.content || 'No results found';
+
+    // Extract n8n workflow if present
+    let workflowJson = null;
+    let content = completion.choices[0].message.content || 'No results found';
+    const workflowMatch = content.match(/\[N8N_WORKFLOW_START\]([\s\S]*?)\[N8N_WORKFLOW_END\]/);
+    if (workflowMatch) {
+      try {
+        workflowJson = JSON.parse(workflowMatch[1].trim());
+        // Remove the workflow section from the main content
+        content = content.replace(/\[N8N_WORKFLOW_START\][\s\S]*?\[N8N_WORKFLOW_END\]/, '');
+      } catch (error) {
+        console.warn('Failed to parse n8n workflow JSON:', error);
+      }
+    }
+
+    return {
+      content,
+      workflow: workflowJson
+    };
   } catch (error: any) {
     console.error('OpenAI API error:', error);
     const researchError: ResearchError = new Error(`Failed to process request with OpenAI API: ${error.message}`);
@@ -73,7 +118,7 @@ async function performResearch(query: string): Promise<string> {
   }
 }
 
-const handleResearch: RequestHandler = async (req, res, next) => {
+const handleResearch: RequestHandler = async (req, res) => {
   try {
     console.log(`${new Date().toISOString()} - POST /api/research`);
     const { query } = req.body;
@@ -97,11 +142,10 @@ const handleResearch: RequestHandler = async (req, res, next) => {
 
     console.log('Starting research process for query:', query);
     
-    // Always use the real AI processing, not simulated results
     const result = await performResearch(query);
     console.log('Research completed successfully');
 
-    // Save research thread (for all users now)
+    // Save research thread
     try {
       if (!global.researchThreads) {
         global.researchThreads = [];
@@ -112,7 +156,8 @@ const handleResearch: RequestHandler = async (req, res, next) => {
         id: `thread_${Date.now()}`,
         userId: user?.id || 'anonymous',
         query,
-        result,
+        result: result.content,
+        workflow: result.workflow,
         timestamp: new Date().toISOString(),
         tags: []
       };
@@ -126,7 +171,7 @@ const handleResearch: RequestHandler = async (req, res, next) => {
 
     return res.json({
       success: true,
-      result: result
+      result
     });
   } catch (error: any) {
     console.error('Research processing error:', error);
