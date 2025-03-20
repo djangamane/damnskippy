@@ -64,6 +64,19 @@ router.post('/', async (req, res) => {
               - Show configuration examples for key components
               - Provide API endpoint structures and sample requests/responses
               
+              ## n8n Workflow Implementation
+              - Design an n8n workflow that accomplishes the task
+              - Explain each node's purpose and configuration
+              - Include setup instructions for n8n connections
+              - Provide screenshots or detailed node configuration
+              - If applicable, describe how the workflow can be triggered (webhook, schedule, etc.)
+              
+              ## Model Context Protocol (MCP) Integration
+              - Explain how MCP can enhance the solution
+              - Detail the integration points between MCP and the workflow
+              - Provide examples of how MCP improves AI-human interaction in this context
+              - Include configuration options for optimal MCP implementation
+              
               ## Integration & Customization Options
               - Suggest alternate approaches or variations to consider
               - Discuss integration with other business systems
