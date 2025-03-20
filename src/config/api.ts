@@ -3,7 +3,7 @@ const config = {
   // In production, API calls will be made to the same origin
   // In development, they will be proxied to the development server
   apiUrl: '',
-  timeout: 30000, // 30 seconds timeout
+  timeout: 300000, // 5 minutes timeout
 };
 
 // Configure axios defaults

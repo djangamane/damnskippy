@@ -181,7 +181,8 @@ export default function ResearchEngine() {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
-          }
+          },
+          timeout: 300000 // 5 minutes timeout specifically for research calls
         }
       );
       
