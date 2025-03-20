@@ -190,10 +190,14 @@ export default function ResearchEngine() {
       if (response.data && response.data.success) {
         const resultData = response.data.result || {};
         
+        // Extract content and workflow from the result object
+        const content = resultData.content || 'No content available';
+        const workflow = resultData.workflow || null;
+        
         setResult({
-          title: resultData.title || 'Research Results',
-          content: resultData.content || 'No content available',
-          workflow: resultData.workflow || null,
+          title: 'Research Results',
+          content,
+          workflow,
           success: true
         });
       } else {
