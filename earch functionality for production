@@ -1,0 +1,455 @@
+[1mdiff --git a/package-lock.json b/package-lock.json[m
+[1mindex 41451f4..c83c03d 100644[m
+[1m--- a/package-lock.json[m
+[1m+++ b/package-lock.json[m
+[36m@@ -28,7 +28,7 @@[m
+         "jsonwebtoken": "^9.0.2",[m
+         "marked": "^15.0.7",[m
+         "mongodb": "^6.15.0",[m
+[31m-        "mongoose": "^8.0.0",[m
+[32m+[m[32m        "mongoose": "^8.12.1",[m
+         "nodemailer": "^6.9.7",[m
+         "openai": "^4.14.2",[m
+         "postcss": "^8.4.31",[m
+[1mdiff --git a/package.json b/package.json[m
+[1mindex 4ac2be3..2a4df17 100644[m
+[1m--- a/package.json[m
+[1m+++ b/package.json[m
+[36m@@ -33,7 +33,7 @@[m
+     "jsonwebtoken": "^9.0.2",[m
+     "marked": "^15.0.7",[m
+     "mongodb": "^6.15.0",[m
+[31m-    "mongoose": "^8.0.0",[m
+[32m+[m[32m    "mongoose": "^8.12.1",[m
+     "nodemailer": "^6.9.7",[m
+     "openai": "^4.14.2",[m
+     "postcss": "^8.4.31",[m
+[1mdiff --git a/server.js b/server.js[m
+[1mindex 820329b..0c063d1 100644[m
+[1m--- a/server.js[m
+[1m+++ b/server.js[m
+[36m@@ -15,22 +15,8 @@[m [mdotenv.config();[m
+ const app = express();[m
+ const port = process.env.PORT || 3001;[m
+ [m
+[31m-// For MongoDB connection issues in development, fall back to in-memory storage[m
+[31m-let useInMemoryStorage = false; // Start with MongoDB as default[m
+[31m-const users = [[m
+[31m-  {[m
+[31m-    _id: '123456789',[m
+[31m-    email: 'test@example.com',[m
+[31m-    password: 'test123',[m
+[31m-    displayName: 'Test User'[m
+[31m-  },[m
+[31m-  {[m
+[31m-    _id: '987654321',[m
+[31m-    email: 'the.nonprofit.org@gmail.com',[m
+[31m-    password: 'test123',[m
+[31m-    displayName: 'Nonprofit User'[m
+[31m-  }[m
+[31m-];[m
+[32m+[m[32m// For MongoDB connection in production[m
+[32m+[m[32mlet useInMemoryStorage = false; // This should always be false in production[m
+ [m
+ // Try to connect to MongoDB[m
+ console.log('Attempting to connect to MongoDB...');[m
+[36m@@ -42,8 +28,9 @@[m [mmongoose.connect(process.env.MONGODB_URI, {[m
+ })[m
+ .then(() => {[m
+   console.log('Connected to MongoDB successfully');[m
+[31m-  console.log('Database:', mongoose.connection.db.databaseName);[m
+[31m-  console.log('MongoDB connection state:', mongoose.connection.readyState);[m
+[32m+[m[32m  const db = mongoose.connection;[m
+[32m+[m[32m  console.log('Database:', db.name);[m
+[32m+[m[32m  console.log('MongoDB connection state:', db.readyState);[m
+   [m
+   // User Schema and Model[m
+   const userSchema = new mongoose.Schema({[m
+[36m@@ -242,7 +229,16 @@[m [mmongoose.connect(process.env.MONGODB_URI, {[m
+     code: err.code,[m
+     stack: err.stack[m
+   });[m
+[31m-  throw new Error('Failed to connect to MongoDB. Application cannot start without database connection.');[m
+[32m+[m[32m  console.error('MongoDB connection error:', err);[m
+[32m+[m[41m  [m
+[32m+[m[32m  // In production, fail hard if MongoDB connection fails[m
+[32m+[m[32m  if (process.env.NODE_ENV === 'production') {[m
+[32m+[m[32m    console.error('CRITICAL ERROR: Cannot connect to MongoDB in production mode. Exiting...');[m
+[32m+[m[32m    process.exit(1); // Exit with error code[m
+[32m+[m[32m  } else {[m
+[32m+[m[32m    console.log('WARNING: MongoDB connection failed but continuing in development mode.');[m
+[32m+[m[32m    // For development only - allow continuing without MongoDB[m
+[32m+[m[32m  }[m
+ });[m
+ [m
+ // Monitor for MongoDB connection issues[m
+[36m@@ -502,103 +498,14 @@[m [mapp.post('/api/auth/signup', async (req, res) => {[m
+ [m
+ // Load research router to handle API requests[m
+ try {[m
+[31m-  const { researchRouter } = require('./server/research');[m
+[32m+[m[32m  const { researchRouter } = require('./server/research.js');[m
+   app.use('/api/research', researchRouter);[m
+   console.log('Research router loaded successfully');[m
+ } catch (error) {[m
+   console.error('Failed to load research router:', error);[m
+[31m-  console.log('Using fallback research handling...');[m
+[31m-  [m
+[31m-  // Fallback research handling if the router fails to load[m
+[31m-  app.post('/api/research', async (req, res) => {[m
+[31m-    try {[m
+[31m-      const { query } = req.body;[m
+[31m-      const token = req.headers.authorization?.split(' ')[1];[m
+[31m-      const decoded = jwt.verify(token, process.env.JWT_SECRET);[m
+[31m-      [m
+[31m-      // Simulation mode response[m
+[31m-      const result = `Fallback simulated response for query: "${query}"\n\nThis is a placeholder response since the research router failed to load.`;[m
+[31m-      [m
+[31m-      // Save the research thread[m
+[31m-      try {[m
+[31m-        const thread = await global.ResearchThread.create({[m
+[31m-          userId: decoded.userId || decoded.id,[m
+[31m-          query,[m
+[31m-          result[m
+[31m-        });[m
+[31m-        console.log(`Saved research thread for user ${decoded.userId || decoded.id}`);[m
+[31m-      } catch (saveError) {[m
+[31m-        console.error('Failed to save research thread:', saveError);[m
+[31m-        // Continue even if saving fails[m
+[31m-      }[m
+[31m-      [m
+[31m-      // Return the result in the format expected by the frontend[m
+[31m-      res.json({[m
+[31m-        success: true,[m
+[31m-        result: {[m
+[31m-          content: result,[m
+[31m-          workflow: null[m
+[31m-        }[m
+[31m-      });[m
+[31m-    } catch (error) {[m
+[31m-      console.error('Research error:', error);[m
+[31m-      res.status(500).json({[m
+[31m-        success: false,[m
+[31m-        error: 'Failed to process research request'[m
+[31m-      });[m
+[31m-    }[m
+[31m-  });[m
+[31m-  [m
+[31m-  app.get('/api/research/history', async (req, res) => {[m
+[31m-    try {[m
+[31m-      const token = req.headers.authorization?.split(' ')[1];[m
+[31m-      const decoded = jwt.verify(token, process.env.JWT_SECRET);[m
+[31m-      [m
+[31m-      const threads = await global.ResearchThread.find({ userId: decoded.userId })[m
+[31m-        .sort({ timestamp: -1 })[m
+[31m-        .limit(50);[m
+[31m-      [m
+[31m-      res.json(threads.map(thread => ({[m
+[31m-        id: thread._id,[m
+[31m-        query: thread.query,[m
+[31m-        result: thread.result,[m
+[31m-        timestamp: thread.timestamp[m
+[31m-      })));[m
+[31m-    } catch (error) {[m
+[31m-      console.error('Error fetching research history:', error);[m
+[31m-      res.status(500).json({ error: 'Failed to fetch research history' });[m
+[31m-    }[m
+[31m-  });[m
+[32m+[m[32m  console.log('Critical error: Research functionality is required for production. Application may not function correctly.');[m
+ }[m
+ [m
+[31m-// Get individual research thread[m
+[31m-app.get('/api/research/thread/:id', async (req, res) => {[m
+[31m-  try {[m
+[31m-    const thread = await global.ResearchThread.findById(req.params.id);[m
+[31m-    if (!thread) {[m
+[31m-      return res.status(404).json({ error: 'Thread not found' });[m
+[31m-    }[m
+[31m-    [m
+[31m-    // Verify the user has access to this thread[m
+[31m-    const token = req.headers.authorization?.split(' ')[1];[m
+[31m-    const decoded = jwt.verify(token, process.env.JWT_SECRET);[m
+[31m-    [m
+[31m-    if (thread.userId !== decoded.userId) {[m
+[31m-      return res.status(403).json({ error: 'Unauthorized access to thread' });[m
+[31m-    }[m
+[31m-    [m
+[31m-    res.json({[m
+[31m-      id: thread._id,[m
+[31m-      query: thread.query,[m
+[31m-      result: thread.result,[m
+[31m-      timestamp: thread.timestamp[m
+[31m-    });[m
+[31m-  } catch (error) {[m
+[31m-    console.error('Error fetching research thread:', error);[m
+[31m-    res.status(500).json({ error: 'Failed to fetch research thread' });[m
+[31m-  }[m
+[31m-});[m
+[31m-[m
+ // Payment confirmation endpoint[m
+ app.post('/api/payment/confirm', async (req, res) => {[m
+   try {[m
+[1mdiff --git a/server/research.js b/server/research.js[m
+[1mindex df3fb44..1852468 100644[m
+[1m--- a/server/research.js[m
+[1m+++ b/server/research.js[m
+[36m@@ -18,13 +18,131 @@[m [mtry {[m
+   console.error('Failed to initialize OpenAI client:', error);[m
+ }[m
+ [m
+[32m+[m[32m// Handle research request[m
+[32m+[m[32mrouter.post('/', async (req, res) => {[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    console.log('Research request received:', req.body.query);[m
+[32m+[m[32m    const { query } = req.body;[m
+[32m+[m[32m    const token = req.headers.authorization?.split(' ')[1];[m
+[32m+[m[32m    const decoded = jwt.verify(token, process.env.JWT_SECRET);[m
+[32m+[m[41m    [m
+[32m+[m[32m    let result;[m
+[32m+[m[41m    [m
+[32m+[m[32m    if (openai) {[m
+[32m+[m[32m      console.log('Calling OpenAI with query:', query);[m
+[32m+[m[32m      try {[m
+[32m+[m[32m        const completion = await openai.chat.completions.create({[m
+[32m+[m[32m          model: "gpt-4-turbo-preview",[m
+[32m+[m[32m          messages: [[m
+[32m+[m[32m            {[m
+[32m+[m[32m              role: "system",[m
+[32m+[m[32m              content: `You are an expert AI research and automation specialist with extensive knowledge in workflow automation, system integration, and business process optimization.[m
+[32m+[m
+[32m+[m[32m              When presented with a query about automation or business processes, provide comprehensive, actionable insights in the following structured format:[m
+[32m+[m[41m              [m
+[32m+[m[32m              ## Solution Overview[m
+[32m+[m[32m              - Provide a clear, executive-level summary of the solution[m
+[32m+[m[32m              - Include strategic benefits and potential business impact[m
+[32m+[m[32m              - Outline how this solution addresses the core problem[m
+[32m+[m[41m              [m
+[32m+[m[32m              ## Implementation Strategy[m
+[32m+[m[32m              - Present a detailed step-by-step implementation plan[m
+[32m+[m[32m              - Estimate costs, timeline, and resource requirements[m
+[32m+[m[32m              - List necessary tools, platforms, and third-party services[m
+[32m+[m[32m              - Identify potential challenges and mitigation strategies[m
+[32m+[m[41m              [m
+[32m+[m[32m              ## Technical Architecture[m
+[32m+[m[32m              - Design a robust technical architecture for the solution[m
+[32m+[m[32m              - Discuss API integrations and data flows[m
+[32m+[m[32m              - Include security considerations and best practices[m
+[32m+[m[32m              - Provide example configuration settings or parameters[m
+[32m+[m[41m              [m
+[32m+[m[32m              ## Code & Configuration Examples[m
+[32m+[m[32m              - Include relevant code snippets in appropriate languages[m
+[32m+[m[32m              - Show configuration examples for key components[m
+[32m+[m[32m              - Provide API endpoint structures and sample requests/responses[m
+[32m+[m[41m              [m
+[32m+[m[32m              ## Integration & Customization Options[m
+[32m+[m[32m              - Suggest alternate approaches or variations to consider[m
+[32m+[m[32m              - Discuss integration with other business systems[m
+[32m+[m[32m              - Outline scaling strategies as needs grow[m
+[32m+[m[32m              - Provide maintenance and monitoring guidance[m
+[32m+[m[41m              [m
+[32m+[m[32m              Format your response using clear markdown formatting with appropriate headings, bullet points, and code blocks.[m
+[32m+[m[32m              If any section is not applicable to the specific query, omit it entirely.[m
+[32m+[m[32m              Be comprehensive, precise, and actionable - your response should serve as a complete implementation guide.`[m
+[32m+[m[32m            },[m
+[32m+[m[32m            {[m
+[32m+[m[32m              role: "user",[m
+[32m+[m[32m              content: query[m
+[32m+[m[32m            }[m
+[32m+[m[32m          ],[m
+[32m+[m[32m          temperature: 0.7,[m
+[32m+[m[32m          max_tokens: 4000,[m
+[32m+[m[32m          timeout: 300000 // 5 minute timeout for comprehensive responses[m
+[32m+[m[32m        });[m
+[32m+[m[41m        [m
+[32m+[m[32m        result = completion.choices[0].message.content;[m
+[32m+[m[32m        console.log('OpenAI response received successfully');[m
+[32m+[m[32m      } catch (apiError) {[m
+[32m+[m[32m        console.error('OpenAI API error:', apiError);[m
+[32m+[m[41m        [m
+[32m+[m[32m        // Check for specific OpenAI errors and provide better error messages[m
+[32m+[m[32m        if (apiError.status === 429) {[m
+[32m+[m[32m          result = "The OpenAI API rate limit has been reached. Please try again in a few minutes.";[m
+[32m+[m[32m        } else if (apiError.status === 401 || apiError.status === 403) {[m
+[32m+[m[32m          result = "There was an authentication error with the OpenAI API. Please contact support.";[m
+[32m+[m[32m        } else {[m
+[32m+[m[32m          result = `There was an error processing your research query: ${apiError.message}`;[m
+[32m+[m[32m        }[m
+[32m+[m[32m      }[m
+[32m+[m[32m    } else {[m
+[32m+[m[32m      // Simulation mode - should not happen in production[m
+[32m+[m[32m      console.error('CRITICAL: OpenAI API key is not configured in production environment');[m
+[32m+[m[32m      result = "Our research engine is currently unavailable. Please try again later or contact support.";[m
+[32m+[m[32m    }[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Save research thread[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      if (global.ResearchThread) {[m
+[32m+[m[32m        // Create new thread in MongoDB[m
+[32m+[m[32m        const thread = await global.ResearchThread.create({[m
+[32m+[m[32m          userId: decoded.id || decoded.userId,[m
+[32m+[m[32m          query,[m
+[32m+[m[32m          result[m
+[32m+[m[32m        });[m
+[32m+[m[32m        console.log(`Saved research thread for user ${decoded.id || decoded.userId}`);[m
+[32m+[m[32m      }[m
+[32m+[m[32m    } catch (saveError) {[m
+[32m+[m[32m      console.error('Failed to save research thread:', saveError);[m
+[32m+[m[32m      // Continue even if saving fails[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // Return the result in the format expected by the frontend[m
+[32m+[m[32m    return res.json({[m
+[32m+[m[32m      success: true,[m
+[32m+[m[32m      result: {[m
+[32m+[m[32m        content: result,[m
+[32m+[m[32m        workflow: null[m
+[32m+[m[32m      }[m
+[32m+[m[32m    });[m
+[32m+[m[32m  } catch (error) {[m
+[32m+[m[32m    console.error('Research error:', error);[m
+[32m+[m[32m    res.status(500).json({[m
+[32m+[m[32m      success: false,[m
+[32m+[m[32m      error: 'Failed to process research request',[m
+[32m+[m[32m      message: error.message[m
+[32m+[m[32m    });[m
+[32m+[m[32m  }[m
+[32m+[m[32m});[m
+[32m+[m
+ // Get research history[m
+ router.get('/history', async (req, res) => {[m
+   try {[m
+     const token = req.headers.authorization?.split(' ')[1];[m
+     const decoded = jwt.verify(token, process.env.JWT_SECRET);[m
+     [m
+[31m-    const threads = await global.ResearchThread.find({ userId: decoded.id.toString() })[m
+[32m+[m[32m    const threads = await global.ResearchThread.find({ userId: decoded.id || decoded.userId })[m
+       .sort({ timestamp: -1 })[m
+       .limit(50);[m
+     [m
+[36m@@ -51,7 +169,8 @@[m [mrouter.get('/thread/:id', async (req, res) => {[m
+     const token = req.headers.authorization?.split(' ')[1];[m
+     const decoded = jwt.verify(token, process.env.JWT_SECRET);[m
+     [m
+[31m-    if (thread.userId !== decoded.id.toString()) {[m
+[32m+[m[32m    // Check if the user has access to this thread[m
+[32m+[m[32m    if (thread.userId !== (decoded.id || decoded.userId)) {[m
+       return res.status(403).json({ error: 'Unauthorized access to thread' });[m
+     }[m
+     [m
+[36m@@ -67,68 +186,6 @@[m [mrouter.get('/thread/:id', async (req, res) => {[m
+   }[m
+ });[m
+ [m
+[31m-// Handle research request[m
+[31m-router.post('/', async (req, res) => {[m
+[31m-  try {[m
+[31m-    const { query } = req.body;[m
+[31m-    const token = req.headers.authorization?.split(' ')[1];[m
+[31m-    const decoded = jwt.verify(token, process.env.JWT_SECRET);[m
+[31m-    [m
+[31m-    let result;[m
+[31m-    if (openai) {[m
+[31m-      const completion = await openai.chat.completions.create({[m
+[31m-        model: "gpt-4-turbo-preview",[m
+[31m-        messages: [[m
+[31m-          {[m
+[31m-            role: "system",[m
+[31m-            content: "You are a helpful AI research assistant. Provide detailed, well-structured answers with citations where possible."[m
+[31m-          },[m
+[31m-          {[m
+[31m-            role: "user",[m
+[31m-            content: query[m
+[31m-          }[m
+[31m-        ],[m
+[31m-        temperature: 0.7,[m
+[31m-        max_tokens: 4000[m
+[31m-      });[m
+[31m-      [m
+[31m-      result = completion.choices[0].message.content;[m
+[31m-    } else {[m
+[31m-      // Simulation mode[m
+[31m-      result = `Simulated response for query: "${query}"\n\nThis is a placeholder response since the OpenAI API key is not configured.`;[m
+[31m-    }[m
+[31m-    [m
+[31m-    // Save research thread[m
+[31m-    try {[m
+[31m-      // Create new thread in MongoDB[m
+[31m-      const thread = await global.ResearchThread.create({[m
+[31m-        userId: decoded.id.toString(),[m
+[31m-        query,[m
+[31m-        result[m
+[31m-      });[m
+[31m-      console.log(`Saved research thread for user ${decoded.id}`);[m
+[31m-    } catch (saveError) {[m
+[31m-      console.error('Failed to save research thread:', saveError);[m
+[31m-      // Continue even if saving fails[m
+[31m-    }[m
+[31m-[m
+[31m-    // Return the result in the format expected by the frontend[m
+[31m-    return res.json({[m
+[31m-      success: true,[m
+[31m-      result: {[m
+[31m-        content: result,[m
+[31m-        workflow: null[m
+[31m-      }[m
+[31m-    });[m
+[31m-  } catch (error) {[m
+[31m-    console.error('Research error:', error);[m
+[31m-    res.status(500).json({[m
+[31m-      success: false,[m
+[31m-      error: 'Failed to process research request'[m
+[31m-    });[m
+[31m-  }[m
+[31m-});[m
+[31m-[m
+ module.exports = {[m
+   researchRouter: router[m
+[31m-};[m
+[32m+[m[32m};[m[41m [m
+\ No newline at end of file[m
+[1mdiff --git a/server/research.ts b/server/research.ts[m
+[1mdeleted file mode 100644[m
+[1mindex 7ca2403..0000000[m
+[1m--- a/server/research.ts[m
+[1m+++ /dev/null[m
+[36m@@ -1,470 +0,0 @@[m
+[31m-import { Router, Request, Response, RequestHandler } from 'express';[m
+[31m-import OpenAI from 'openai';[m
+[31m-import { ResearchThreadModel } from './models/ResearchThread';[m
+[31m-import { extractUserFromRequest, authenticate } from './auth';[m
+[31m-[m
+[31m-const router = Router();[m
+[31m-[m
+[31m-// Initialize OpenAI client with error handling[m
+[31m-let openai: OpenAI | null = null;[m
+[31m-[m
+[31m-try {[m
+[31m-  console.log("Initializing OpenAI client...");[m
+[31m-  if (!process.env.OPENAI_API_KEY) {[m
+[31m-    console.warn('WARNING: OPENAI_API_KEY environment variable is missing or empty. Research functionality will be disabled.');[m
+[31m-  } else {[m
+[31m-    openai = new OpenAI({[m
+[31m-      apiKey: process.env.OPENAI_API_KEY,[m
+[31m-    });[m
+[31m-    console.log('OpenAI client initialized successfully');[m
+[31m-  }[m
+[31m-} catch (error) {[m
+[31m-  console.error('Failed to initialize OpenAI client:', error);[m
+[31m-}[m
+[31m-[m
+[31m-interface ResearchError extends Error {[m
+[31m-  status?: number;[m
+[31m-}[m
+[31m-[m
+[31m-interface ResearchResult {[m
+[31m-  content: string;[m
+[31m-  workflow: any | null;[m
+[31m-}[m
+[31m-[m
+[31m-async function performResearch(query: string): Promise<ResearchResult> {[m
+[31m-  try {[m
+[31m-    if (!openai) {[m
+[31m-      throw new Error("OpenAI client is not initialized. Please check your API key configuration.");[m
+[31m-    }[m
+[31m-[m
+[31m-  

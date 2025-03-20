@@ -102,7 +102,7 @@ export default function LandingPage() {
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center">
               <Logo size={40} />
-              <span className="ml-2 text-2xl font-bold text-cyan-400">SkipTheGames4AI.com</span>
+              <span className="ml-2 text-2xl font-bold text-cyan-400">SkipTheGamesWithAI.com</span>
             </div>
             <div>
               <button
@@ -138,7 +138,7 @@ export default function LandingPage() {
               <div className="absolute inset-0 flex items-center justify-center">
                 <img 
                   src="/images/logo.jpeg" 
-                  alt="SkipTheGames4AI.com Logo" 
+                  alt="SkipTheGamesWithAI.com Logo" 
                   className="w-5/6 h-5/6 object-contain rounded-full"
                   onError={(e) => {
                     console.error("Image failed to load");
@@ -165,7 +165,7 @@ export default function LandingPage() {
                               fill="url(#logoGradient)" 
                               opacity="0.8"
                             />
-                            <text x="100" y="160" text-anchor="middle" fill="#06b6d4" font-size="24" font-weight="bold">SkipTheGames4AI</text>
+                            <text x="100" y="160" text-anchor="middle" fill="#06b6d4" font-size="24" font-weight="bold">SkipTheGamesWithAI</text>
                             <text x="100" y="180" text-anchor="middle" fill="#8b5cf6" font-size="16" font-weight="bold">AI</text>
                           </svg>
                         </div>
@@ -220,7 +220,7 @@ export default function LandingPage() {
       <div className="bg-gradient-to-b from-black to-gray-900 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-cyan-400 mb-4">Why Choose SkipTheGames4AI.com?</h2>
+            <h2 className="text-3xl font-bold text-cyan-400 mb-4">Why Choose SkipTheGamesWithAI.com?</h2>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               Our AI-powered platform helps businesses automate their growth with cutting-edge technology
             </p>
@@ -253,7 +253,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-white mb-6">Ready to Transform Your Business?</h2>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
-            Join thousands of businesses already using SkipTheGames4AI.com to automate their growth
+            Join thousands of businesses already using SkipTheGamesWithAI.com to automate their growth
           </p>
           <button
             onClick={openAuthModal}
@@ -270,10 +270,10 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center mb-4 md:mb-0">
               <Logo size={30} />
-              <span className="ml-2 text-xl font-bold text-cyan-400">SkipTheGames4AI.com</span>
+              <span className="ml-2 text-xl font-bold text-cyan-400">SkipTheGamesWithAI.com</span>
             </div>
             <div className="text-gray-400 text-sm">
-              &copy; {new Date().getFullYear()} SkipTheGames4AI.com. All rights reserved.
+              &copy; {new Date().getFullYear()} SkipTheGamesWithAI.com. All rights reserved.
             </div>
           </div>
         </div>

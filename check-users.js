@@ -16,7 +16,7 @@ async function checkUsers() {
     await client.connect();
     console.log('Connected to MongoDB');
     
-    const db = client.db('skipthegames4ai');
+    const db = client.db('skipthegameswithai');
     const users = await db.collection('users').find({}).toArray();
     
     console.log('\nUsers in database:');

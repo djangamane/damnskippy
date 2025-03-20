@@ -380,7 +380,7 @@ export default function ResearchEngine() {
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center gap-3">
               <Logo size={40} />
-              <h1 className="text-2xl font-bold text-indigo-900">SkipTheGames4AI.com</h1>
+              <h1 className="text-2xl font-bold text-indigo-900">SkipTheGamesWithAI.com</h1>
             </div>
             <div className="flex gap-3">
               <button
@@ -402,7 +402,7 @@ export default function ResearchEngine() {
           {/* Hero Section */}
           <div className="text-center mb-10">
             <div className="flex items-center justify-center gap-3 mb-3">
-              <h1 className="text-5xl font-bold text-indigo-900">SkipTheGames4AI.com</h1>
+              <h1 className="text-5xl font-bold text-indigo-900">SkipTheGamesWithAI.com</h1>
             </div>
             <p className="text-xl text-indigo-700 max-w-2xl mx-auto">
               Discover AI-powered automation solutions with deep research capabilities

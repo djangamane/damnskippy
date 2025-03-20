@@ -32,8 +32,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     root.innerHTML = `
       <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; text-align: center;">
-        <h1 style="color: #333;">skipthegames4AI.com</h1>
-        <p style="font-size: 18px; margin-top: 20px;">Welcome to skipthegames4AI.com, the AI-powered research automation platform.</p>
+        <h1 style="color: #333;">skipthegameswithai.com</h1>
+        <p style="font-size: 18px; margin-top: 20px;">Welcome to skipthegameswithai.com, the AI-powered research automation platform.</p>
         <p style="font-size: 16px; margin-top: 20px; color: #666;">It looks like there was an issue loading the application. Please try refreshing the page.</p>
         <button onclick="window.location.reload()" style="background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 20px;">Refresh Page</button>
         <p style="font-size: 14px; margin-top: 30px; color: #999;">If the issue persists, please contact support.</p>
@@ -56,8 +56,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     newRoot.innerHTML = `
       <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; text-align: center;">
-        <h1 style="color: #333;">skipthegames4AI.com</h1>
-        <p style="font-size: 18px; margin-top: 20px;">Welcome to skipthegames4AI.com, the AI-powered research automation platform.</p>
+        <h1 style="color: #333;">skipthegameswithai.com</h1>
+        <p style="font-size: 18px; margin-top: 20px;">Welcome to skipthegameswithai.com, the AI-powered research automation platform.</p>
         <p style="font-size: 16px; margin-top: 20px; color: #666;">It looks like there was an issue loading the application. Please try refreshing the page.</p>
         <button onclick="window.location.reload()" style="background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 20px;">Refresh Page</button>
         <p style="font-size: 14px; margin-top: 30px; color: #999;">If the issue persists, please contact support.</p>

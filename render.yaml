@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: skipthegames4ai
+    name: skipthegameswithai
     env: node
     buildCommand: npm install && npm run build
     startCommand: NODE_ENV=production node server.js
@@ -20,4 +20,4 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
     domains:
-      - skipthegames4ai.onrender.com
+      - skipthegameswithai.onrender.com

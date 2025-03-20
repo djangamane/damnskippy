@@ -41,7 +41,7 @@ async function testConnection() {
     console.log(dbList.databases.map(db => db.name).join(', '));
     
     // Try connecting to the specific database
-    const db = client.db('skipthegames4ai');
+    const db = client.db('skipthegameswithai');
     console.log('Connected to database:', db.databaseName);
     
     // List collections

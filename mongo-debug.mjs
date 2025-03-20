@@ -70,7 +70,7 @@ async function debugMongoDB() {
     console.log('SUCCESS: Connected to MongoDB!');
     
     // Test database access
-    const db = client.db('skipthegames4ai');
+    const db = client.db('skipthegameswithai');
     const collections = await db.listCollections().toArray();
     
     console.log(`Found ${collections.length} collections:`, 

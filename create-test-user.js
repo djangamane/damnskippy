@@ -25,7 +25,7 @@ async function createTestUser() {
     await client.connect();
     console.log('Connected to MongoDB');
     
-    const db = client.db('skipthegames4ai');
+    const db = client.db('skipthegameswithai');
     
     // Check if user already exists
     const existingUser = await db.collection('users').findOne({ email: 'test@example.com' });
