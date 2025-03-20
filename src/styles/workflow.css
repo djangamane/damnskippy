@@ -1,0 +1,90 @@
+/* Workflow Diagram Styles */
+.workflow-diagram {
+  margin: 20px 0;
+  padding: 20px;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.workflow-node {
+  width: 200px;
+  min-height: 100px;
+  padding: 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  color: white;
+}
+
+.workflow-node:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.workflow-node-title {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.workflow-node-type {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.workflow-node-connections {
+  margin-top: auto;
+  background-color: rgba(255, 255, 255, 0.15);
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.workflow-metadata {
+  margin-top: 20px;
+  text-align: center;
+}
+
+/* JSON Display Styles */
+.workflow-json {
+  margin-top: 20px;
+  background-color: #282c34;
+  color: #abb2bf;
+  padding: 15px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 14px;
+  max-height: 300px;
+}
+
+.workflow-json pre {
+  margin: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .workflow-node {
+    width: 160px;
+    min-height: 80px;
+    padding: 10px;
+  }
+  
+  .workflow-node-title {
+    font-size: 12px;
+  }
+  
+  .workflow-node-type {
+    font-size: 10px;
+  }
+}
