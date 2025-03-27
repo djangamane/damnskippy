@@ -47,76 +47,74 @@
       };
     </script>
     <script>
-      // Wait for the ElevenLabs agent to load
-      window.addEventListener('load', function () {
-        // Check if the agent object exists (depends on how it's embedded)
-        const waitForAgent = setInterval(() => {
-          // Attempt to find the agent instance. The widget might attach it to window or directly.
-          // The <elevenlabs-convai> tag suggests it might be a custom element.
-          // We might need to query the element and access its properties/methods if it doesn't expose a global object.
-          const agentElement = document.querySelector('elevenlabs-convai');
-          let agent = window.elevenlabsAgent || window.agent; // Try global first
-
-          // If global not found, try accessing the agent instance from the custom element
-          // This part is speculative and might need adjustment based on the widget's actual API
-          if (!agent && agentElement && agentElement.agent) {
-              agent = agentElement.agent;
-          } else if (!agent && agentElement && typeof agentElement.getAgent === 'function') {
-              agent = agentElement.getAgent(); // Or maybe a method provides it
-          }
-
-          if (agent && typeof agent.on === 'function') {
-            clearInterval(waitForAgent);
-            console.log('✅ Agent found and listener can be attached.');
-
-            // Listen for end of call/session
-            agent.on('sessionEnd', function (sessionData) {
-              console.log('👂 sessionEnd event received:', sessionData); // Log received data
-              // Create timestamp
+      // Function to set up the listener once the agent is ready
+      function setupAgentListener(agentInstance, agentElement) {
+          console.log('✅ Agent instance obtained:', agentInstance);
+          agentInstance.on('sessionEnd', function (sessionData) {
+              console.log('👂 sessionEnd event received:', sessionData);
               const endedAt = new Date().toISOString();
-
-              // Optional: Customize what you send to Make
               const payload = {
-                ended_at: endedAt,
-                agent_id: agentElement?.getAttribute('agent-id') || 'Unknown Agent ID', // Get agent ID from element
-                agent_name: "Tasha", // Set your agent's name
-                transcript: sessionData?.transcript || 'Transcript not available',
-                user_id: sessionData?.userId || 'Unknown User ID' // Assuming sessionData might have userId
+                  ended_at: endedAt,
+                  agent_id: agentElement?.getAttribute('agent-id') || 'Unknown Agent ID',
+                  agent_name: "Tasha",
+                  transcript: sessionData?.transcript || 'Transcript not available',
+                  user_id: sessionData?.userId || 'Unknown User ID'
               };
-              console.log('📦 Payload to send:', payload); // Log payload
-
-              // Send it to your Make webhook
+              console.log('📦 Payload to send:', payload);
               fetch("https://hook.us2.make.com/3cqq93sdeavsd1zcmzt7cne2ua6q02ig", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload)
               })
               .then(res => {
                   console.log('📬 Webhook send attempt finished. Status:', res.status);
                   if (!res.ok) {
                       console.error('Webhook send failed:', res.statusText);
-                      res.text().then(text => console.error('Response body:', text)); // Log error response
+                      res.text().then(text => console.error('Response body:', text));
                   }
                   return res;
               })
               .catch(error => {
                   console.error('❌ Error sending webhook:', error);
               });
-            });
+          });
+          console.log('✅ Agent event listener for sessionEnd set.');
+      }
 
-            console.log('✅ Agent event listener for sessionEnd set.');
-          } else {
-              // console.log('⏳ Agent not ready yet, retrying...'); // Optional: reduce console noise
+      // Wait for the custom element to be defined
+      customElements.whenDefined('elevenlabs-convai').then(() => {
+          console.log('✅ elevenlabs-convai element defined.');
+          const agentElement = document.querySelector('elevenlabs-convai');
+
+          if (!agentElement) {
+              console.error('❌ elevenlabs-convai element not found in DOM after definition.');
+              return;
           }
-        }, 500); // Retry every 500ms
 
-        // Timeout after a reasonable period if the agent never loads
-        setTimeout(() => {
-            if (!window.elevenlabsAgent && !window.agent && !document.querySelector('elevenlabs-convai')?.agent) {
-                clearInterval(waitForAgent);
-                console.error('❌ Agent object not found after timeout. Listener not set.');
-            }
-        }, 30000); // Stop trying after 30 seconds
+          // Now that the element is defined, poll for the agent instance on it
+          // The agent instance might be attached asynchronously after definition
+          let attemptCount = 0;
+          const maxAttempts = 60; // Try for 30 seconds (60 * 500ms)
+          const waitForAgentInstance = setInterval(() => {
+              attemptCount++;
+              // Check common properties or methods - THIS IS STILL A GUESS, trying multiple possibilities
+              const agent = agentElement.agent || agentElement._agent || (typeof agentElement.getAgent === 'function' ? agentElement.getAgent() : null) || window.elevenlabsAgent;
+
+              if (agent && typeof agent.on === 'function') {
+                  clearInterval(waitForAgentInstance);
+                  setupAgentListener(agent, agentElement);
+              } else if (attemptCount >= maxAttempts) {
+                  clearInterval(waitForAgentInstance);
+                  console.error(`❌ Agent instance not found on element after ${maxAttempts} attempts. Listener not set.`);
+                  // Log the element to inspect its properties in the console
+                  console.log('Inspect the element for agent property:', agentElement);
+              } else {
+                   // console.log(`⏳ Agent instance not ready on element yet (attempt ${attemptCount})...`);
+              }
+          }, 500);
+
+      }).catch(error => {
+          console.error('❌ Error waiting for elevenlabs-convai element definition:', error);
       });
     </script>
   </body>
