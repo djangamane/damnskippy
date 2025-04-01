@@ -1,0 +1,30 @@
+name: Daily Database Report
+
+on:
+  schedule:
+    # Run at 7:00 AM UTC every day
+    - cron: '0 7 * * *'
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  trigger-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Generate Database Report
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+        run: node scripts/db-report.js
